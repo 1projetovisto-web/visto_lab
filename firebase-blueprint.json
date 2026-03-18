@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user profile information and roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The Firebase Auth UID." },
+        "name": { "type": "string", "description": "The user's display name." },
+        "email": { "type": "string", "description": "The user's email address." },
+        "role": { "type": "string", "enum": ["student", "admin"], "description": "The user's role in the platform." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user account was created." }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Progress": {
+      "title": "Course Progress",
+      "description": "Tracks completed lessons for a user in a specific course.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user." },
+        "courseId": { "type": "string", "description": "The ID of the course." },
+        "completedLessons": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "List of lesson IDs completed by the user."
+        },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last time progress was updated." }
+      },
+      "required": ["userId", "courseId", "completedLessons"]
+    },
+    "Submission": {
+      "title": "Student Submission",
+      "description": "Artworks submitted by students based on workshops.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "description": { "type": "string" },
+        "openProcessingId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "studentUid": { "type": "string" },
+        "workshopId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "artist", "openProcessingId", "studentUid", "workshopId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents."
+    },
+    "/progress/{progressId}": {
+      "schema": "Progress",
+      "description": "Progress tracking documents. progressId is usually userId_courseId."
+    },
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Student artwork submissions."
+    }
+  }
+}

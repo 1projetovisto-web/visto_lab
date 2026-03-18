@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Firebase Auth UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - role: string (required, enum: student, admin)
+    //   - createdAt: string (optional)
+    //
+    // Collection: progress
+    // Document ID: {progressId} (usually userId_courseId)
+    // Fields:
+    //   - userId: string (required)
+    //   - courseId: string (required)
+    //   - completedLessons: list (required)
+    //   - updatedAt: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "core0gam3@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['student', 'admin'];
+    }
+
+    function isValidProgress(data) {
+      return data.keys().hasAll(['userId', 'courseId', 'completedLessons']) &&
+             data.userId == request.auth.uid &&
+             data.courseId is string &&
+             data.completedLessons is list &&
+             data.completedLessons.size() <= 100;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'student' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /progress/{progressId} {
+      allow read: if isAuthenticated() && (progressId.startsWith(request.auth.uid) || (resource != null && resource.data.userId == request.auth.uid) || isAdmin());
+      allow create: if isAuthenticated() && isValidProgress(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidProgress(request.resource.data) && resource.data.userId == request.auth.uid;
+    }
+
+    match /submissions/{submissionId} {
+      allow read: if true; // Gallery is public
+      allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || isAdmin());
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
