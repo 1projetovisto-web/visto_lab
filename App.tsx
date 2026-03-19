@@ -100,74 +100,92 @@ const Magnetic = ({ children, strength = 0.5 }: { children: ReactNode; strength?
   );
 };
 
-const InteractiveTitle = ({ text, className, highlights = [] }: { text: string; className?: string; highlights?: string[] }) => {
-  const words = text.split(' ');
+const InteractiveTitle = ({ 
+  text, 
+  lines,
+  className, 
+  highlights = [] 
+}: { 
+  text?: string; 
+  lines?: { text: string; className?: string }[];
+  className?: string; 
+  highlights?: string[] 
+}) => {
+  const contentLines = lines || (text ? [{ text, className }] : []);
   
   return (
-    <div className="perspective-[1000px]">
-      <h1 className={className}>
-        {words.map((word, wordIdx) => {
-          const isHighlighted = highlights.some(h => word.toLowerCase().includes(h.toLowerCase()));
+    <div className="perspective-[1000px] w-full flex flex-col items-center justify-center text-center">
+      <h1 className="w-full">
+        {contentLines.map((line, lineIdx) => {
+          const words = line.text.split(' ');
           return (
-            <span key={wordIdx} className="inline-block mr-[0.2em] whitespace-nowrap" style={{ transformStyle: 'preserve-3d' }}>
-              {word.split('').map((char, charIdx) => (
-                <motion.span
-                  key={charIdx}
-                  initial={{ opacity: 0, filter: 'blur(10px)', skewX: 20, z: -100 }}
-                  animate={{ opacity: 1, filter: 'blur(0px)', skewX: 0, z: 0 }}
-                  transition={{ 
-                    delay: (wordIdx * 0.05) + (charIdx * 0.01),
-                    duration: 0.8,
-                    ease: [0.215, 0.61, 0.355, 1]
-                  }}
-                  className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : ''}`}
-                  whileHover={{ 
-                    scale: 1.8,
-                    z: 250,
-                    color: '#00ff00',
-                    textShadow: '0 20px 40px rgba(0, 255, 0, 0.4), 0 -10px 20px rgba(255, 255, 255, 0.1)',
-                    transition: { 
-                      type: 'spring', 
-                      stiffness: 500, 
-                      damping: 15 
-                    }
-                  }}
-                  style={{ transformStyle: 'preserve-3d' }}
-                >
-                  {/* Depth Layer (Ghost) */}
-                  <span 
-                    className="absolute inset-0 opacity-0 group-hover:opacity-40 blur-[4px] pointer-events-none transition-opacity duration-300"
-                    style={{ transform: 'translateZ(-30px)' }}
-                  >
-                    {char}
-                  </span>
-                  {/* Secondary Depth Layer */}
-                  <span 
-                    className="absolute inset-0 opacity-0 group-hover:opacity-20 blur-[8px] pointer-events-none transition-opacity duration-500"
-                    style={{ transform: 'translateZ(-60px)' }}
-                  >
-                    {char}
-                  </span>
-                  {/* Tertiary Depth Layer */}
-                  <span 
-                    className="absolute inset-0 opacity-0 group-hover:opacity-10 blur-[12px] pointer-events-none transition-opacity duration-700"
-                    style={{ transform: 'translateZ(-90px)' }}
-                  >
-                    {char}
-                  </span>
-                  {/* Quaternary Depth Layer */}
-                  <span 
-                    className="absolute inset-0 opacity-0 group-hover:opacity-5 blur-[16px] pointer-events-none transition-opacity duration-1000"
-                    style={{ transform: 'translateZ(-120px)' }}
-                  >
-                    {char}
-                  </span>
-                  {char}
-                </motion.span>
-              ))}
-            </span>
-          );
-        })}
+            <div key={lineIdx} className={line.className || className}>
+            {words.map((word, wordIdx) => {
+              const isHighlighted = highlights.some(h => word.toLowerCase().includes(h.toLowerCase()));
+              return (
+                <span key={wordIdx} className="inline-block mr-[0.3em] whitespace-nowrap" style={{ transformStyle: 'preserve-3d' }}>
+                  {word.split('').map((char, charIdx) => (
+                    <motion.span
+                      key={charIdx}
+                      initial={{ opacity: 0, filter: 'blur(12px)', skewX: 15, y: 30, z: -80 }}
+                      whileInView={{ opacity: 1, filter: 'blur(0px)', skewX: 0, y: 0, z: 0 }}
+                      viewport={{ once: true, margin: "-50px" }}
+                      transition={{ 
+                        delay: (lineIdx * 0.15) + (wordIdx * 0.04) + (charIdx * 0.015),
+                        duration: 0.9,
+                        ease: [0.16, 1, 0.3, 1]
+                      }}
+                      className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
+                      whileHover={{ 
+                        scale: 1.8,
+                        z: 250,
+                        color: '#CCFF00',
+                        textShadow: '0 20px 40px rgba(204, 255, 0, 0.4), 0 -10px 20px rgba(255, 255, 255, 0.1)',
+                        transition: { 
+                          type: 'spring', 
+                          stiffness: 500, 
+                          damping: 15 
+                        }
+                      }}
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      {/* Depth Layer (Ghost) */}
+                      <span 
+                        className="absolute inset-0 opacity-0 group-hover:opacity-40 blur-[4px] pointer-events-none transition-opacity duration-300"
+                        style={{ transform: 'translateZ(-30px)' }}
+                      >
+                        {char}
+                      </span>
+                      {/* Secondary Depth Layer */}
+                      <span 
+                        className="absolute inset-0 opacity-0 group-hover:opacity-20 blur-[8px] pointer-events-none transition-opacity duration-500"
+                        style={{ transform: 'translateZ(-60px)' }}
+                      >
+                        {char}
+                      </span>
+                      {/* Tertiary Depth Layer */}
+                      <span 
+                        className="absolute inset-0 opacity-0 group-hover:opacity-10 blur-[12px] pointer-events-none transition-opacity duration-700"
+                        style={{ transform: 'translateZ(-90px)' }}
+                      >
+                        {char}
+                      </span>
+                      {/* Quaternary Depth Layer */}
+                      <span 
+                        className="absolute inset-0 opacity-0 group-hover:opacity-5 blur-[16px] pointer-events-none transition-opacity duration-1000"
+                        style={{ transform: 'translateZ(-120px)' }}
+                      >
+                        {char}
+                      </span>
+                      {char}
+                    </motion.span>
+                  ))}
+                </span>
+              );
+            })}
+          </div>
+        );
+      })}
       </h1>
     </div>
   );
@@ -744,108 +762,70 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
 };
 
 const LogosFooter = () => (
-  <footer className="px-6 md:px-12 py-16 bg-black border-t border-white/10 relative">
-    <div className="absolute top-0 left-0 bg-accent text-bg px-2 py-1 font-mono text-[8px] uppercase font-bold">Rodapé Institucional</div>
-    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12 md:gap-16">
-      
-      {/* BLOCO ESQUERDA: PRODUÇÃO */}
-      <div className="flex flex-col items-center md:items-start gap-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold">PRODUÇÃO</p>
-        <div className="flex items-center gap-6">
-          <div className="h-28 flex items-center px-6 border border-white/10 bg-white/5 rounded">
-            <img 
-              src="https://lh3.googleusercontent.com/d/1FNLyGyCA8CjBmVWo0p1FZEJhKfWdG2sX" 
-              alt="VISTO" 
-              className="h-16 w-auto object-contain" 
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const span = document.createElement('span');
-                span.className = "text-[10px] font-bold";
-                span.innerText = "VISTO";
-                e.currentTarget.parentElement!.appendChild(span);
-              }}
-            />
-          </div>
-          <div className="h-28 flex items-center px-6 border border-white/10 bg-white/5 rounded">
-            <img 
-              src="https://lh3.googleusercontent.com/d/1U0MG-bzwdiJfKtWjTUboMCNCtBKh4H13" 
-              alt="LUGARZINHO" 
-              className="h-16 w-auto object-contain" 
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const span = document.createElement('span');
-                span.className = "text-[10px] font-bold";
-                span.innerText = "LUGARZINHO";
-                e.currentTarget.parentElement!.appendChild(span);
-              }}
-            />
-          </div>
+  <footer className="px-[5%] py-[20px] bg-black hover:bg-[#CCFF00] text-white hover:text-black transition-colors duration-500 ease-in-out border-t border-white/10 hover:border-black/10 relative group">
+    <div className="max-w-[1400px] mx-auto overflow-x-auto scrollbar-hide pb-4 md:pb-0">
+      <div className="flex flex-nowrap items-end gap-[20px] text-left w-max mx-auto">
+        
+        {/* BLOCO 1: PNAB */}
+        <div className="flex flex-col items-start gap-[2px]">
+          <p className="font-mono text-[10px] uppercase font-normal opacity-0 pointer-events-none select-none m-0 p-0 leading-none">PNAB</p>
+          <img 
+            src="https://lh3.googleusercontent.com/d/1UEtbBiV_vDLXsylVbkJX0iuW2vICYtgQ" 
+            alt="PNAB" 
+            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
+            referrerPolicy="no-referrer"
+          />
         </div>
-      </div>
 
-      {/* BLOCO DIREITA: FINANCIAMENTO */}
-      <div className="flex flex-col items-center md:items-end gap-4 flex-1">
-        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold text-center md:text-right">FINANCIAMENTO E REALIZAÇÃO</p>
-        <div className="flex flex-wrap items-center justify-center md:justify-end gap-6">
-          {/* LOGO PNAB */}
-          <div className="h-28 flex items-center px-6 border border-white/10 bg-white/5 rounded">
+        {/* BLOCO 2: PRODUÇÃO */}
+        <div className="flex flex-col items-start gap-[2px]">
+          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">PRODUÇÃO:</p>
+          <div className="flex items-end gap-[8px]">
             <img 
-              src="https://lh3.googleusercontent.com/d/1LCTX-idujgy9WpKDjuoZtRD5q3_tqR3Q" 
-              alt="PNAB" 
-              className="h-16 w-auto object-contain" 
+              src="https://lh3.googleusercontent.com/d/1TsqykTJFLsPAmKCjkVVW81dqkQcySp6a" 
+              alt="VISTO" 
+              className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const span = document.createElement('span');
-                span.className = "text-[10px] font-bold";
-                span.innerText = "PNAB";
-                e.currentTarget.parentElement!.appendChild(span);
-              }}
             />
-          </div>
-          {/* LOGO GOVERNO RS */}
-          <div className="h-28 flex items-center px-6 border border-white/10 bg-white/5 rounded">
             <img 
-              src="https://lh3.googleusercontent.com/d/1mKSqGzUwmjHE8qyUgZrKiFNCSAve640A" 
-              alt="GOVERNO RS" 
-              className="h-16 w-auto object-contain" 
+              src="https://lh3.googleusercontent.com/d/1o_b9X5PNvVODlPBc2UNVUIdvCY6p6kHD" 
+              alt="LUGARZINHO" 
+              className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const span = document.createElement('span');
-                span.className = "text-[10px] font-bold";
-                span.innerText = "GOVERNO RS";
-                e.currentTarget.parentElement!.appendChild(span);
-              }}
-            />
-          </div>
-          {/* REALIZAÇÃO GOVERNO FEDERAL */}
-          <div className="h-28 flex items-center px-8 border border-white/10 bg-white/5 rounded">
-            <img 
-              src="https://lh3.googleusercontent.com/d/1pqHbPuLoxn6hkyZkQJZnKSL2JFUf3b15" 
-              alt="GOVERNO FEDERAL" 
-              className="h-20 w-auto object-contain" 
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const span = document.createElement('span');
-                span.className = "text-[10px] font-bold";
-                span.innerText = "GOVERNO FEDERAL";
-                e.currentTarget.parentElement!.appendChild(span);
-              }}
             />
           </div>
         </div>
+
+        {/* BLOCO 3: FINANCIAMENTO */}
+        <div className="flex flex-col items-start gap-[2px]">
+          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">FINANCIAMENTO:</p>
+          <img 
+            src="https://lh3.googleusercontent.com/d/14etPf5F-fCk5_ZyiT1Olymy-tFGc3Pu3" 
+            alt="GOVERNO RS" 
+            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
+            referrerPolicy="no-referrer"
+          />
+        </div>
+
+        {/* BLOCO 4: REALIZAÇÃO */}
+        <div className="flex flex-col items-start gap-[2px]">
+          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">REALIZAÇÃO:</p>
+          <img 
+            src="https://lh3.googleusercontent.com/d/1BwnEsZ91XpxicCZrnAMXrCaaOmkmgM-9" 
+            alt="GOVERNO FEDERAL" 
+            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
+            referrerPolicy="no-referrer"
+          />
+        </div>
+
       </div>
     </div>
     
-    <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 opacity-30 font-mono text-[9px] uppercase tracking-widest text-white">
+    <div className="max-w-[1400px] mx-auto mt-8 pt-4 border-t border-white/10 group-hover:border-black/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-50 group-hover:opacity-80 font-mono text-[10px] uppercase tracking-widest transition-all duration-500 ease-in-out">
       <p>© 2026 V.I.S.T.O: OCUPAÇÕES VÍDEO_COREOGRÁFICAS _ Reabrindo o LUgarZinho</p>
       <div className="flex gap-8">
-        <a href="#" className="hover:text-accent transition-colors">Política de Privacidade</a>
-        <a href="#" className="hover:text-accent transition-colors">Termos de Uso</a>
+        <a href="#" className="hover:opacity-100 transition-opacity">Política de Privacidade</a>
+        <a href="#" className="hover:opacity-100 transition-opacity">Termos de Uso</a>
       </div>
     </div>
   </footer>
@@ -1067,12 +1047,15 @@ function AppContent() {
           {/* Intro Section */}
           <motion.section 
             style={{ y: introY, opacity: introOpacity }}
-            className="mb-24 max-w-4xl"
+            className="mb-24 w-full bg-black py-12 px-4 rounded-xl border border-white/5 mx-auto flex flex-col items-center justify-center text-center"
           >
             <InteractiveTitle 
-              text="V.I.S.T.O: OCUPAÇÕES VÍDEO_COREOGRÁFICAS _ Reabrindo o LUgarZinho no 4º Distrito Poa."
-              className="font-display text-3xl md:text-5xl font-medium leading-tight tracking-tight"
-              highlights={['LUgarZinho']}
+              lines={[
+                { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.4rem] sm:text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight" },
+                { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.3rem] sm:text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight mb-2" },
+                { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.1rem] sm:text-[1.4rem] md:text-[1.8rem] font-medium leading-tight tracking-tight" }
+              ]}
+              highlights={['LUGARZINHO']}
             />
           </motion.section>
 
