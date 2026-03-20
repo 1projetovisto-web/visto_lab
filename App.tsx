@@ -127,13 +127,13 @@ const InteractiveTitle = ({
                   {word.split('').map((char, charIdx) => (
                     <motion.span
                       key={charIdx}
-                      initial={{ opacity: 0, filter: 'blur(12px)', skewX: 15, y: 30, z: -80 }}
-                      whileInView={{ opacity: 1, filter: 'blur(0px)', skewX: 0, y: 0, z: 0 }}
+                      initial={{ opacity: 0, filter: 'blur(20px)', rotateY: 60, rotateX: 45, z: -150, y: 20 }}
+                      whileInView={{ opacity: 1, filter: 'blur(0px)', rotateY: 0, rotateX: 0, z: 0, y: 0 }}
                       viewport={{ once: true, margin: "-50px" }}
                       transition={{ 
-                        delay: (lineIdx * 0.15) + (wordIdx * 0.04) + (charIdx * 0.015),
-                        duration: 0.9,
-                        ease: [0.16, 1, 0.3, 1]
+                        delay: (lineIdx * 0.1) + (wordIdx * 0.05) + (charIdx * 0.03),
+                        duration: 1.4,
+                        ease: [0.2, 0.8, 0.2, 1]
                       }}
                       className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
                       whileHover={{ 
@@ -183,9 +183,9 @@ const InteractiveTitle = ({
                 </span>
               );
             })}
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
       </h1>
     </div>
   );
@@ -762,72 +762,13 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
 };
 
 const LogosFooter = () => (
-  <footer className="px-[5%] py-[20px] bg-black hover:bg-[#CCFF00] text-white hover:text-black transition-colors duration-500 ease-in-out border-t border-white/10 hover:border-black/10 relative group">
-    <div className="max-w-[1400px] mx-auto overflow-x-auto scrollbar-hide pb-4 md:pb-0">
-      <div className="flex flex-nowrap items-end gap-[20px] text-left w-max mx-auto">
-        
-        {/* BLOCO 1: PNAB */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal opacity-0 pointer-events-none select-none m-0 p-0 leading-none">PNAB</p>
-          <img 
-            src="https://lh3.googleusercontent.com/d/1UEtbBiV_vDLXsylVbkJX0iuW2vICYtgQ" 
-            alt="PNAB" 
-            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
-        {/* BLOCO 2: PRODUÇÃO */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">PRODUÇÃO:</p>
-          <div className="flex items-end gap-[8px]">
-            <img 
-              src="https://lh3.googleusercontent.com/d/1TsqykTJFLsPAmKCjkVVW81dqkQcySp6a" 
-              alt="VISTO" 
-              className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-              referrerPolicy="no-referrer"
-            />
-            <img 
-              src="https://lh3.googleusercontent.com/d/1o_b9X5PNvVODlPBc2UNVUIdvCY6p6kHD" 
-              alt="LUGARZINHO" 
-              className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-              referrerPolicy="no-referrer"
-            />
-          </div>
-        </div>
-
-        {/* BLOCO 3: FINANCIAMENTO */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">FINANCIAMENTO:</p>
-          <img 
-            src="https://lh3.googleusercontent.com/d/14etPf5F-fCk5_ZyiT1Olymy-tFGc3Pu3" 
-            alt="GOVERNO RS" 
-            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
-        {/* BLOCO 4: REALIZAÇÃO */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">REALIZAÇÃO:</p>
-          <img 
-            src="https://lh3.googleusercontent.com/d/1BwnEsZ91XpxicCZrnAMXrCaaOmkmgM-9" 
-            alt="GOVERNO FEDERAL" 
-            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
-      </div>
-    </div>
-    
-    <div className="max-w-[1400px] mx-auto mt-8 pt-4 border-t border-white/10 group-hover:border-black/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-50 group-hover:opacity-80 font-mono text-[10px] uppercase tracking-widest transition-all duration-500 ease-in-out">
-      <p>© 2026 V.I.S.T.O: OCUPAÇÕES VÍDEO_COREOGRÁFICAS _ Reabrindo o LUgarZinho</p>
-      <div className="flex gap-8">
-        <a href="#" className="hover:opacity-100 transition-opacity">Política de Privacidade</a>
-        <a href="#" className="hover:opacity-100 transition-opacity">Termos de Uso</a>
-      </div>
-    </div>
+  <footer className="w-full px-[5%] py-[40px] bg-[#CCFF00] flex justify-center transition-all duration-500 ease-in-out group">
+    <img 
+      src="https://lh3.googleusercontent.com/d/1fs54ghIfUMm9DmJ0Yp-FqC0Dug-JOaDg" 
+      alt="Logos Institucionais" 
+      className="w-full max-w-[1400px] h-auto block group-hover:scale-105 transition-all duration-500 ease-in-out" 
+      referrerPolicy="no-referrer"
+    />
   </footer>
 );
 
