@@ -762,11 +762,11 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
 };
 
 const LogosFooter = () => (
-  <footer className="w-full px-[5%] py-[40px] bg-[#CCFF00] flex justify-center transition-all duration-500 ease-in-out group">
+  <footer className="w-full px-[2%] py-[40px] bg-[#CCFF00] flex justify-center transition-all duration-500 ease-in-out group overflow-hidden">
     <img 
       src="https://lh3.googleusercontent.com/d/1fs54ghIfUMm9DmJ0Yp-FqC0Dug-JOaDg" 
       alt="Logos Institucionais" 
-      className="w-full max-w-[1400px] h-auto block group-hover:scale-105 transition-all duration-500 ease-in-out" 
+      className="w-full max-w-[1920px] h-auto block group-hover:scale-105 transition-all duration-500 ease-in-out" 
       referrerPolicy="no-referrer"
     />
   </footer>
