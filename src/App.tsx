@@ -7,12 +7,14 @@ import {
   doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where,
   handleFirestoreError, OperationType, FirebaseUser
 } from './firebase';
+
 type View = 'gallery' | 'courses' | 'login' | 'live';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
   children: ReactNode;
 }
+
 interface ErrorBoundaryState {
   hasError: boolean;
   error: any;
@@ -202,6 +204,7 @@ const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
         target1
           .split("")
           .map((letter, index) => {
+            if(letter === '.') return '.';
             if(index < iteration) return target1[index];
             return letters[Math.floor(Math.random() * 26)];
           })
@@ -230,10 +233,50 @@ const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
     <h1 
       onClick={onClick}
       onMouseEnter={handleMouseOver}
-      className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter uppercase cursor-pointer hover:bg-black hover:text-white px-3 py-2 rounded-2xl transition-all duration-300 flex items-center gap-2 group"
+      className="font-mono text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white px-3 py-2 rounded-2xl transition-all duration-300 flex items-center gap-2 group"
     >
       <span>{text1}</span> <span className="text-accent group-hover:text-white transition-colors duration-300">{text2}</span>
     </h1>
+  );
+};
+
+const ScrambleNavItem = ({ text, onClick, isActive }: { text: string, onClick: () => void, isActive: boolean }) => {
+  const [displayText, setDisplayText] = useState(text);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  const handleMouseOver = () => {
+    let iteration = 0;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    intervalRef.current = setInterval(() => {
+      setDisplayText(
+        text
+          .split("")
+          .map((char, index) => {
+            if(char === ' ') return ' ';
+            if(index < iteration) return text[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+
+      if(iteration >= text.length){
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+
+      iteration += 1 / 3;
+    }, 30);
+  };
+
+  return (
+    <button 
+      onClick={onClick}
+      onMouseEnter={handleMouseOver}
+      className={`font-mono text-xs sm:text-sm md:text-base uppercase tracking-[0.2em] px-4 py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white ${isActive ? 'text-accent' : 'text-white'}`}
+    >
+      {displayText}
+    </button>
   );
 };
 
@@ -252,14 +295,12 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
     style={{ y, backgroundColor: bg, backdropFilter: blur }}
     className="fixed top-0 left-0 w-full z-50 px-6 py-6 flex justify-between items-center transition-colors duration-300 border-b border-white/5"
   >
-    <div className="pointer-events-auto flex items-center gap-8">
-      <Magnetic strength={0.2}>
-        <ScrambleTitle onClick={() => setView('gallery')} />
-      </Magnetic>
-      <nav className="hidden sm:flex gap-6 font-mono text-[10px] uppercase tracking-[0.2em]">
-        <button onClick={() => setView('gallery')} className={`hover:text-accent transition-colors ${currentView === 'gallery' ? 'text-accent' : ''}`}>Galeria</button>
-        <button onClick={() => setView('courses')} className={`hover:text-accent transition-colors ${currentView === 'courses' ? 'text-accent' : ''}`}>Workshops</button>
-        <button onClick={() => setView('live')} className={`hover:text-accent transition-colors ${currentView === 'live' ? 'text-accent' : ''}`}>Ao Vivo</button>
+    <div className="pointer-events-auto flex items-center gap-8 lg:gap-16">
+      <ScrambleTitle onClick={() => setView('gallery')} />
+      <nav className="hidden sm:flex gap-4 md:gap-8">
+        <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} />
+        <ScrambleNavItem text="Workshops" onClick={() => setView('courses')} isActive={currentView === 'courses'} />
+        <ScrambleNavItem text="Ao Vivo" onClick={() => setView('live')} isActive={currentView === 'live'} />
       </nav>
     </div>
     <div className="pointer-events-auto flex items-center gap-4">
