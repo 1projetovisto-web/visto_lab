@@ -1,9 +1,9 @@
-/**
+**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft } from 'lucide-react';
 import { ARTWORKS, Artwork, COURSES, Course, Lesson } from './data';
@@ -127,13 +127,13 @@ const InteractiveTitle = ({
                   {word.split('').map((char, charIdx) => (
                     <motion.span
                       key={charIdx}
-                      initial={{ opacity: 0, filter: 'blur(12px)', skewX: 15, y: 30, z: -80 }}
-                      whileInView={{ opacity: 1, filter: 'blur(0px)', skewX: 0, y: 0, z: 0 }}
+                      initial={{ opacity: 0, filter: 'blur(20px)', rotateY: 60, rotateX: 45, z: -150, y: 20 }}
+                      whileInView={{ opacity: 1, filter: 'blur(0px)', rotateY: 0, rotateX: 0, z: 0, y: 0 }}
                       viewport={{ once: true, margin: "-50px" }}
                       transition={{ 
-                        delay: (lineIdx * 0.15) + (wordIdx * 0.04) + (charIdx * 0.015),
-                        duration: 0.9,
-                        ease: [0.16, 1, 0.3, 1]
+                        delay: (lineIdx * 0.1) + (wordIdx * 0.05) + (charIdx * 0.03),
+                        duration: 1.4,
+                        ease: [0.2, 0.8, 0.2, 1]
                       }}
                       className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
                       whileHover={{ 
@@ -183,11 +183,64 @@ const InteractiveTitle = ({
                 </span>
               );
             })}
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
       </h1>
     </div>
+  );
+};
+
+const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
+  const [text1, setText1] = useState("V.I.S.T.O");
+  const [text2, setText2] = useState("LAB");
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  const handleMouseOver = () => {
+    let iteration = 0;
+    const target1 = "V.I.S.T.O";
+    const target2 = "LAB";
+    
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    intervalRef.current = setInterval(() => {
+      setText1(
+        target1
+          .split("")
+          .map((letter, index) => {
+            if(index < iteration) return target1[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+      
+      setText2(
+        target2
+          .split("")
+          .map((letter, index) => {
+            if(index < iteration) return target2[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+
+      if(iteration >= Math.max(target1.length, target2.length)){
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+
+      iteration += 1 / 3;
+    }, 30);
+  };
+
+  return (
+    <h1 
+      onClick={onClick}
+      onMouseEnter={handleMouseOver}
+      className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter uppercase cursor-pointer hover:bg-black hover:text-white px-3 py-2 rounded-2xl transition-all duration-300 flex items-center gap-2 group"
+    >
+      <span>{text1}</span> <span className="text-accent group-hover:text-white transition-colors duration-300">{text2}</span>
+    </h1>
   );
 };
 
@@ -208,12 +261,7 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
   >
     <div className="pointer-events-auto flex items-center gap-8">
       <Magnetic strength={0.2}>
-        <h1 
-          onClick={() => setView('gallery')}
-          className="font-display text-2xl font-bold tracking-tighter uppercase cursor-pointer"
-        >
-          V.I.S.T.O <span className="text-accent">Lab</span>
-        </h1>
+        <ScrambleTitle onClick={() => setView('gallery')} />
       </Magnetic>
       <nav className="hidden sm:flex gap-6 font-mono text-[10px] uppercase tracking-[0.2em]">
         <button onClick={() => setView('gallery')} className={`hover:text-accent transition-colors ${currentView === 'gallery' ? 'text-accent' : ''}`}>Galeria</button>
@@ -762,72 +810,13 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
 };
 
 const LogosFooter = () => (
-  <footer className="px-[5%] py-[20px] bg-black hover:bg-[#CCFF00] text-white hover:text-black transition-colors duration-500 ease-in-out border-t border-white/10 hover:border-black/10 relative group">
-    <div className="max-w-[1400px] mx-auto overflow-x-auto scrollbar-hide pb-4 md:pb-0">
-      <div className="flex flex-nowrap items-end gap-[20px] text-left w-max mx-auto">
-        
-        {/* BLOCO 1: PNAB */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal opacity-0 pointer-events-none select-none m-0 p-0 leading-none">PNAB</p>
-          <img 
-            src="https://lh3.googleusercontent.com/d/1UEtbBiV_vDLXsylVbkJX0iuW2vICYtgQ" 
-            alt="PNAB" 
-            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
-        {/* BLOCO 2: PRODUÇÃO */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">PRODUÇÃO:</p>
-          <div className="flex items-end gap-[8px]">
-            <img 
-              src="https://lh3.googleusercontent.com/d/1TsqykTJFLsPAmKCjkVVW81dqkQcySp6a" 
-              alt="VISTO" 
-              className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-              referrerPolicy="no-referrer"
-            />
-            <img 
-              src="https://lh3.googleusercontent.com/d/1o_b9X5PNvVODlPBc2UNVUIdvCY6p6kHD" 
-              alt="LUGARZINHO" 
-              className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-              referrerPolicy="no-referrer"
-            />
-          </div>
-        </div>
-
-        {/* BLOCO 3: FINANCIAMENTO */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">FINANCIAMENTO:</p>
-          <img 
-            src="https://lh3.googleusercontent.com/d/14etPf5F-fCk5_ZyiT1Olymy-tFGc3Pu3" 
-            alt="GOVERNO RS" 
-            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
-        {/* BLOCO 4: REALIZAÇÃO */}
-        <div className="flex flex-col items-start gap-[2px]">
-          <p className="font-mono text-[10px] uppercase font-normal text-[#CCFF00] group-hover:text-black transition-colors duration-500 ease-in-out m-0 p-0 leading-none">REALIZAÇÃO:</p>
-          <img 
-            src="https://lh3.googleusercontent.com/d/1BwnEsZ91XpxicCZrnAMXrCaaOmkmgM-9" 
-            alt="GOVERNO FEDERAL" 
-            className="h-[90px] w-auto object-contain brightness-0 invert group-hover:brightness-100 group-hover:invert-0 transition-all duration-500 ease-in-out block" 
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
-      </div>
-    </div>
-    
-    <div className="max-w-[1400px] mx-auto mt-8 pt-4 border-t border-white/10 group-hover:border-black/10 flex flex-col md:flex-row justify-between items-center gap-4 opacity-50 group-hover:opacity-80 font-mono text-[10px] uppercase tracking-widest transition-all duration-500 ease-in-out">
-      <p>© 2026 V.I.S.T.O: OCUPAÇÕES VÍDEO_COREOGRÁFICAS _ Reabrindo o LUgarZinho</p>
-      <div className="flex gap-8">
-        <a href="#" className="hover:opacity-100 transition-opacity">Política de Privacidade</a>
-        <a href="#" className="hover:opacity-100 transition-opacity">Termos de Uso</a>
-      </div>
-    </div>
+  <footer className="w-full px-[2%] py-[40px] bg-[#CCFF00] flex justify-center transition-all duration-500 ease-in-out group overflow-hidden">
+    <img 
+      src="https://lh3.googleusercontent.com/d/1fs54ghIfUMm9DmJ0Yp-FqC0Dug-JOaDg" 
+      alt="Logos Institucionais" 
+      className="w-full max-w-[1920px] h-auto block group-hover:scale-105 transition-all duration-500 ease-in-out" 
+      referrerPolicy="no-referrer"
+    />
   </footer>
 );
 
@@ -1051,9 +1040,9 @@ function AppContent() {
           >
             <InteractiveTitle 
               lines={[
-                { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.4rem] sm:text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight" },
-                { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.3rem] sm:text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight mb-2" },
-                { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.1rem] sm:text-[1.4rem] md:text-[1.8rem] font-medium leading-tight tracking-tight" }
+                { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.8rem] sm:text-[3rem] md:text-[4rem] lg:text-[5rem] font-bold leading-tight tracking-tight" },
+                { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.6rem] sm:text-[2.8rem] md:text-[3.5rem] lg:text-[4.5rem] font-bold leading-tight tracking-tight mb-2" },
+                { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.2rem] sm:text-[1.8rem] md:text-[2rem] lg:text-[2.5rem] font-medium leading-tight tracking-tight" }
               ]}
               highlights={['LUGARZINHO']}
             />
@@ -1162,7 +1151,7 @@ function AppContent() {
           <section className="mb-16">
             <InteractiveTitle 
               text="VISTO LAB"
-              className="font-display text-6xl md:text-8xl font-bold uppercase tracking-tighter mb-6"
+              className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-6"
             />
             <p className="font-sans opacity-60 max-w-2xl text-lg leading-relaxed">Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia.</p>
           </section>
