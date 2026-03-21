@@ -1,8 +1,3 @@
-**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft } from 'lucide-react';
@@ -12,14 +7,12 @@ import {
   doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where,
   handleFirestoreError, OperationType, FirebaseUser
 } from './firebase';
-
 type View = 'gallery' | 'courses' | 'login' | 'live';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
   children: ReactNode;
 }
-
 interface ErrorBoundaryState {
   hasError: boolean;
   error: any;
