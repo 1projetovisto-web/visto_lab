@@ -95,6 +95,208 @@ const Magnetic = ({ children, strength = 0.5 }: { children: ReactNode; strength?
   );
 };
 
+const ConstellationBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = canvas.width = canvas.offsetWidth;
+    let height = canvas.height = canvas.offsetHeight;
+    
+    class Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      radius: number;
+      baseRadius: number;
+      life: number;
+      maxLife: number;
+
+      constructor(x?: number, y?: number, isTemporary: boolean = false) {
+        this.x = x ?? Math.random() * width;
+        this.y = y ?? Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.8;
+        this.vy = (Math.random() - 0.5) * 0.8;
+        this.baseRadius = Math.random() * 2 + 1.5; // 3px to 7px diameter
+        this.radius = this.baseRadius;
+        this.maxLife = isTemporary ? Math.random() * 100 + 100 : Infinity;
+        this.life = this.maxLife;
+      }
+
+      update(mouseX: number, mouseY: number, isHovering: boolean) {
+        // Gravitational pull towards mouse
+        if (isHovering) {
+          const dx = mouseX - this.x;
+          const dy = mouseY - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 250) {
+            const force = (250 - dist) / 250;
+            this.vx += (dx / dist) * force * 0.05;
+            this.vy += (dy / dist) * force * 0.05;
+          }
+        }
+
+        // Friction / Speed limit
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        if (speed > 1.5) {
+          this.vx = (this.vx / speed) * 1.5;
+          this.vy = (this.vy / speed) * 1.5;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Wrap around
+        if (this.x < 0) this.x = width;
+        if (this.x > width) this.x = 0;
+        if (this.y < 0) this.y = height;
+        if (this.y > height) this.y = 0;
+
+        if (this.maxLife !== Infinity) {
+          this.life--;
+        }
+      }
+
+      draw(ctx: CanvasRenderingContext2D) {
+        const opacity = this.maxLife !== Infinity ? (this.life / this.maxLife) * 0.6 : 0.6;
+        
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 253, 231, ${opacity})`; // Ocre Suave core
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#CCFF00'; // Accent color glow
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    let particles: Particle[] = [];
+    const initParticles = () => {
+      particles = [];
+      const numParticles = Math.min(Math.floor((width * height) / 12000), 100); // Optimized count
+      for (let i = 0; i < numParticles; i++) {
+        particles.push(new Particle());
+      }
+    };
+    initParticles();
+
+    let animationFrameId: number;
+    let mouseX = -1000;
+    let mouseY = -1000;
+    let isHovering = false;
+
+    const draw = () => {
+      animationFrameId = requestAnimationFrame(draw);
+
+      // Trail effect
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; // Dark background fade for motion blur
+      ctx.fillRect(0, 0, width, height);
+
+      // Smooth merging
+      ctx.globalCompositeOperation = 'screen';
+
+      // Update and draw particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update(mouseX, mouseY, isHovering);
+        p.draw(ctx);
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        // Constellation connections
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p.x - p2.x;
+          const dy = p.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            const opacity = (1 - dist / 120) * 0.4;
+            ctx.strokeStyle = `rgba(204, 255, 0, ${opacity * 0.8})`; // Accent color tint
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+          }
+        }
+      }
+    };
+
+    draw();
+
+    const handleResize = () => {
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+      initParticles();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      
+      const rect = parent.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      isHovering = true;
+      
+      const target = e.target as HTMLElement;
+      if (target.closest('h1') || target.closest('input')) {
+        // Inject new temporary particles on hover movement
+        if (Math.random() > 0.7 && particles.length < 250) {
+          for(let i = 0; i < 2; i++) {
+            particles.push(new Particle(
+              mouseX + (Math.random() - 0.5) * 40, 
+              mouseY + (Math.random() - 0.5) * 40,
+              true
+            ));
+          }
+        }
+      }
+    };
+
+    const handleMouseLeave = () => {
+      isHovering = false;
+      mouseX = -1000;
+      mouseY = -1000;
+    };
+
+    const parent = canvas.parentElement;
+    if (parent) {
+      parent.addEventListener('mousemove', handleMouseMove);
+      parent.addEventListener('mouseleave', handleMouseLeave);
+    }
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+      if (parent) {
+        parent.removeEventListener('mousemove', handleMouseMove);
+        parent.removeEventListener('mouseleave', handleMouseLeave);
+      }
+    };
+  }, []);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="absolute inset-0 w-full h-full opacity-100 pointer-events-none rounded-xl z-0"
+    />
+  );
+};
+
 const InteractiveTitle = ({ 
   text, 
   lines,
@@ -1076,98 +1278,105 @@ function AppContent() {
 
       {view === 'gallery' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
-          {/* Intro Section */}
-          <motion.section 
-            style={{ y: introY, opacity: introOpacity }}
-            className="mb-24 w-full bg-black py-12 px-4 rounded-xl border border-white/5 mx-auto flex flex-col items-center justify-center text-center"
-          >
-            <InteractiveTitle 
-              lines={[
-                { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.8rem] sm:text-[3rem] md:text-[4rem] lg:text-[5rem] font-bold leading-tight tracking-tight" },
-                { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.6rem] sm:text-[2.8rem] md:text-[3.5rem] lg:text-[4.5rem] font-bold leading-tight tracking-tight mb-2" },
-                { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.2rem] sm:text-[1.8rem] md:text-[2rem] lg:text-[2.5rem] font-medium leading-tight tracking-tight" }
-              ]}
-              highlights={['LUGARZINHO']}
-            />
-          </motion.section>
-
-          {/* Search and Advanced Filters */}
-          <div className="mb-12 space-y-6">
-            <div className={`flex flex-col gap-4 transition-all duration-500 ${isSearchActive ? 'opacity-100' : 'max-w-xs'}`}>
-              <div className={`relative flex-1 group transition-all duration-300 ${isSearchActive ? 'search-focus' : ''}`}>
-                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearchActive ? 'text-accent' : 'opacity-30'}`} size={18} />
-                <input 
-                  type="text" 
-                  placeholder="DIGITE AQUI..." 
-                  value={searchQuery}
-                  onFocus={() => setIsSearchActive(true)}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full bg-white/5 border py-4 pl-12 pr-4 font-mono text-xs uppercase tracking-widest outline-none transition-all duration-300 ${
-                    isSearchActive 
-                      ? 'border-accent text-accent' 
-                      : 'border-white/10 opacity-60 hover:opacity-100'
-                  }`}
+          {/* Hero Section (Title + Search) */}
+          <div className="relative mb-12 w-full bg-black rounded-xl border border-white/5 overflow-hidden">
+            <ConstellationBackground />
+            
+            <div className="relative z-10 w-full px-4 py-12 md:py-20 flex flex-col items-center">
+              {/* Intro Section */}
+              <motion.section 
+                style={{ y: introY, opacity: introOpacity }}
+                className="w-full mb-16 flex flex-col items-center justify-center text-center pointer-events-auto"
+              >
+                <InteractiveTitle 
+                  lines={[
+                    { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.8rem] sm:text-[3rem] md:text-[4rem] lg:text-[5rem] font-bold leading-tight tracking-tight" },
+                    { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.6rem] sm:text-[2.8rem] md:text-[3.5rem] lg:text-[4.5rem] font-bold leading-tight tracking-tight mb-2" },
+                    { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.2rem] sm:text-[1.8rem] md:text-[2rem] lg:text-[2.5rem] font-medium leading-tight tracking-tight" }
+                  ]}
+                  highlights={['LUGARZINHO']}
                 />
-                {isSearchActive && (
-                  <button 
-                    onClick={() => {
-                      setIsSearchActive(false);
-                      setSearchQuery('');
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-accent hover:scale-110 transition-transform"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-              
-              <AnimatePresence>
-                {isSearchActive && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex flex-wrap gap-2 items-center py-2">
-                      <span className="font-mono text-[9px] uppercase tracking-widest opacity-40 mr-2 text-accent">Filtrar resultado com:</span>
-                      {(['OBRAS', 'ARTISTAS', 'DATA', 'TAGS'] as const).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => setSearchFilterType(type)}
-                          className={`px-4 py-2 font-mono text-[10px] uppercase tracking-widest border transition-all ${
-                            searchFilterType === type 
-                              ? 'bg-accent text-bg border-accent' 
-                              : 'border-accent/20 text-accent/60 hover:border-accent/60'
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+              </motion.section>
 
-            {/* Categories - Only show if search is not active to keep it clean, or keep them as secondary */}
-            {!isSearchActive && (
-              <div className="flex flex-wrap gap-3 border-t border-white/5 pt-6">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setFilter(cat)}
-                    className={`font-mono text-[9px] uppercase tracking-[0.2em] px-4 py-2 border transition-all ${
-                      filter === cat 
-                        ? 'bg-accent text-bg border-accent' 
-                        : 'border-white/10 hover:border-white/40'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              {/* Search and Advanced Filters */}
+              <div className="w-full max-w-5xl mx-auto space-y-6 pointer-events-auto">
+                <div className={`flex flex-col gap-4 transition-all duration-500 ${isSearchActive ? 'opacity-100' : 'max-w-md mx-auto'}`}>
+                  <div className={`relative flex-1 group transition-all duration-300 ${isSearchActive ? 'search-focus' : ''}`}>
+                    <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearchActive ? 'text-accent' : 'opacity-30'}`} size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="DIGITE AQUI..." 
+                      value={searchQuery}
+                      onFocus={() => setIsSearchActive(true)}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full bg-white/5 border py-4 pl-12 pr-4 font-mono text-xs uppercase tracking-widest outline-none transition-all duration-300 ${
+                        isSearchActive 
+                          ? 'border-accent text-accent bg-black/50 backdrop-blur-md' 
+                          : 'border-white/10 opacity-80 hover:opacity-100 bg-black/20 backdrop-blur-sm'
+                      }`}
+                    />
+                    {isSearchActive && (
+                      <button 
+                        onClick={() => {
+                          setIsSearchActive(false);
+                          setSearchQuery('');
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-accent hover:scale-110 transition-transform"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <AnimatePresence>
+                    {isSearchActive && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="flex flex-wrap gap-2 items-center py-2 justify-center">
+                          <span className="font-mono text-[9px] uppercase tracking-widest opacity-60 mr-2 text-accent">Filtrar resultado com:</span>
+                          {(['OBRAS', 'ARTISTAS', 'DATA', 'TAGS'] as const).map((type) => (
+                            <button
+                              key={type}
+                              onClick={() => setSearchFilterType(type)}
+                              className={`px-4 py-2 font-mono text-[10px] uppercase tracking-widest border transition-all ${
+                                searchFilterType === type 
+                                  ? 'bg-accent text-bg border-accent' 
+                                  : 'border-accent/30 text-accent/80 hover:border-accent/80 bg-black/40'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Categories */}
+                {!isSearchActive && (
+                  <div className="flex flex-wrap gap-3 border-t border-white/10 pt-6 justify-center">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setFilter(cat)}
+                        className={`font-mono text-[9px] uppercase tracking-[0.2em] px-4 py-2 border transition-all ${
+                          filter === cat 
+                            ? 'bg-accent text-bg border-accent' 
+                            : 'border-white/10 hover:border-white/40 bg-black/20 backdrop-blur-sm'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Grid */}
