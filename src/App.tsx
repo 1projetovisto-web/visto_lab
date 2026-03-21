@@ -757,8 +757,9 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
                 <iframe 
                   src={`https://openprocessing.org/sketch/${artwork.openProcessingId}/embed/`}
                   className="w-full h-full border-none"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="camera; microphone; display-capture; geolocation"
                   allowFullScreen
+                  sandbox="allow-same-origin allow-scripts"
                 />
               ) : (
                 <>
@@ -891,6 +892,14 @@ function AppContent() {
   const [studentSubmissions, setStudentSubmissions] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const handleNavigate = (newView: View) => {
+    setView(newView);
+    setFilter('All');
+    setSearchQuery('');
+    setIsSearchActive(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Fetch Submissions
   useEffect(() => {
     const q = query(collection(db, 'submissions'));
@@ -961,7 +970,7 @@ function AppContent() {
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      setView('courses');
+      handleNavigate('courses');
     } catch (error) {
       console.error("Login Error", error);
     }
@@ -970,7 +979,7 @@ function AppContent() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      setView('gallery');
+      handleNavigate('gallery');
     } catch (error) {
       console.error("Logout Error", error);
     }
@@ -1048,7 +1057,7 @@ function AppContent() {
         onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} 
         isMenuOpen={isMenuOpen} 
         currentView={view}
-        setView={setView}
+        setView={handleNavigate}
         user={user}
         onLogout={handleLogout}
         y={headerY}
@@ -1059,7 +1068,7 @@ function AppContent() {
       <MenuOverlay 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
-        setView={setView}
+        setView={handleNavigate}
         currentView={view}
       />
       
@@ -1177,7 +1186,7 @@ function AppContent() {
       {view === 'courses' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
           <button 
-            onClick={() => setView('gallery')}
+            onClick={() => handleNavigate('gallery')}
             className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
           >
             <ArrowLeft size={14} /> Voltar para Galeria
@@ -1193,7 +1202,7 @@ function AppContent() {
           {!user && (
             <div className="mb-12 p-8 border border-accent/30 bg-accent/5 flex flex-col md:flex-row justify-between items-center gap-6">
               <p className="font-display text-xl uppercase tracking-tight">Faça login para salvar seu progresso e obter certificados.</p>
-              <button onClick={() => setView('login')} className="px-8 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold">Entrar Agora</button>
+              <button onClick={() => handleNavigate('login')} className="px-8 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold">Entrar Agora</button>
             </div>
           )}
 
@@ -1213,7 +1222,7 @@ function AppContent() {
       {view === 'live' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
           <button 
-            onClick={() => setView('gallery')}
+            onClick={() => handleNavigate('gallery')}
             className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
           >
             <ArrowLeft size={14} /> Voltar para Galeria
