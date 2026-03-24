@@ -1,9 +1,4 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft } from 'lucide-react';
 import { ARTWORKS, Artwork, COURSES, Course, Lesson } from './data';
@@ -13,7 +8,7 @@ import {
   handleFirestoreError, OperationType, FirebaseUser
 } from './firebase';
 
-type View = 'gallery' | 'courses' | 'login' | 'live';
+type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -100,6 +95,599 @@ const Magnetic = ({ children, strength = 0.5 }: { children: ReactNode; strength?
   );
 };
 
+const ConstellationBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Audio state refs
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const convolverNodeRef = useRef<ConvolverNode | null>(null);
+  
+  // Drone state refs
+  const droneOscRef = useRef<OscillatorNode | null>(null);
+  const droneFilterRef = useRef<BiquadFilterNode | null>(null);
+  const droneGainRef = useRef<GainNode | null>(null);
+
+  const isAudioInitialized = useRef(false);
+  
+  // Interaction tracking
+  const smoothedSpeedRef = useRef(0);
+  const lastMousePosRef = useRef({ x: -1000, y: -1000 });
+  
+  // Sequencer state
+  const nextNoteTimeRef = useRef(0);
+  const currentStepRef = useRef(0);
+  const tempoRef = useRef(90);
+  const previousConnectionsRef = useRef<Set<string>>(new Set());
+  const currentMarkovStateRef = useRef(3); // Start at index 3 (E4)
+
+  const initAudio = () => {
+    if (isAudioInitialized.current) return;
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    
+    isAudioInitialized.current = true;
+    const ctx = new AudioContext();
+    audioCtxRef.current = ctx;
+
+    const masterGain = ctx.createGain();
+    const compressor = ctx.createDynamicsCompressor();
+    const convolver = ctx.createConvolver();
+    const reverbGain = ctx.createGain();
+
+    masterGain.gain.value = 0.4; // Volume geral
+
+    // --- CONVOLUTION REVERB (Caverna/Catedral) ---
+    // Gerando uma Resposta de Impulso (IR) sintética de 3 segundos
+    const sampleRate = ctx.sampleRate;
+    const duration = 3.0;
+    const decay = 3.0; // Cauda longa
+    const length = sampleRate * duration;
+    const impulse = ctx.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+    for (let i = 0; i < length; i++) {
+      const envelope = Math.pow(1 - i / length, decay);
+      left[i] = (Math.random() * 2 - 1) * envelope;
+      right[i] = (Math.random() * 2 - 1) * envelope;
+    }
+    convolver.buffer = impulse;
+    reverbGain.gain.value = 0.8; // Volume do Reverb (Wet)
+    
+    convolver.connect(reverbGain);
+    reverbGain.connect(compressor);
+    convolverNodeRef.current = convolver;
+
+    // Compressor para proteger contra picos
+    compressor.threshold.value = -24;
+    compressor.knee.value = 30;
+    compressor.ratio.value = 12;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.25;
+
+    masterGain.connect(compressor);
+    compressor.connect(ctx.destination);
+
+    masterGainRef.current = masterGain;
+
+    // --- DRONE LAYER (Ambient Background) ---
+    const droneOsc = ctx.createOscillator();
+    const droneOsc2 = ctx.createOscillator(); // Segundo oscilador para efeito "Chorus" etéreo
+    const droneFilter = ctx.createBiquadFilter();
+    const droneGain = ctx.createGain();
+
+    droneOsc.type = 'sine'; // Som puro e suave
+    droneOsc.frequency.value = 150; // Frequência base
+    
+    droneOsc2.type = 'sine';
+    droneOsc2.frequency.value = 152; // Levemente desafinado para criar batimento (beating) espacial
+
+    droneFilter.type = 'lowpass';
+    droneFilter.frequency.value = 800; // Filtro base
+
+    droneGain.gain.value = 0; // Começa mudo
+
+    droneOsc.connect(droneFilter);
+    droneOsc2.connect(droneFilter);
+    droneFilter.connect(droneGain);
+    droneGain.connect(masterGain); // Conecta ao master (antes do compressor)
+    if (convolverNodeRef.current) {
+        droneGain.connect(convolverNodeRef.current); // Envia o drone para a caverna também
+    }
+
+    droneOsc.start();
+    droneOsc2.start();
+
+    droneOscRef.current = droneOsc;
+    droneFilterRef.current = droneFilter;
+    droneGainRef.current = droneGain;
+  };
+
+  const playPulse = (speed: number, type: 'kick' | 'tick' | 'bass', time: number) => {
+    const ctx = audioCtxRef.current;
+    const master = masterGainRef.current;
+    const convolver = convolverNodeRef.current;
+    if (!ctx || !master) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    if (type === 'kick') {
+      osc.type = 'sine';
+      const baseFreq = 60 + (speed / 50) * 20; // Mais grave
+      osc.frequency.setValueAtTime(baseFreq, time);
+      osc.frequency.exponentialRampToValueAtTime(20, time + 0.2);
+
+      // Ataque mais suave (thud profundo em vez de click)
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.4, time + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+      
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(time);
+      osc.stop(time + 0.5);
+      
+    } else if (type === 'tick') {
+      // Substituindo o "tick" áspero por um "chime" etéreo de alta frequência
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(2000 + Math.random() * 500, time);
+      
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.02, time + 0.02); // Bem baixinho
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+      
+      osc.connect(gain);
+      gain.connect(master);
+      if (convolver) gain.connect(convolver); // Eco no chime
+      osc.start(time);
+      osc.stop(time + 0.15);
+      
+    } else if (type === 'bass') {
+      osc.type = 'sine'; // Trocado de triangle para sine para ficar mais aveludado
+      const bassNotes = [55.00, 65.41, 73.42, 82.41, 98.00]; // A1, C2, D2, E2, G2
+      const freq = bassNotes[Math.floor(Math.random() * bassNotes.length)];
+      osc.frequency.setValueAtTime(freq, time);
+      
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(150 + speed * 10, time);
+      filter.frequency.exponentialRampToValueAtTime(80, time + 0.3);
+
+      // Ataque bem lento para o baixo pulsar suavemente
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.2, time + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
+      
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(master);
+      if (convolver) gain.connect(convolver);
+      osc.start(time);
+      osc.stop(time + 0.6);
+    }
+  };
+
+  const playPentatonicNote = (opacity: number) => {
+    const ctx = audioCtxRef.current;
+    const master = masterGainRef.current;
+    const convolver = convolverNodeRef.current;
+    if (!ctx || !master) return;
+
+    // --- CADEIA DE MARKOV (Música Generativa) ---
+    // Escala Pentatônica (A menor: A3, C4, D4, E4, G4, A4, C5)
+    const PENTATONIC_NOTES = [220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+    
+    // Matriz de Transição (Probabilidades)
+    const MARKOV_MATRIX = [
+      [0.1, 0.4, 0.2, 0.1, 0.1, 0.1, 0.0], // De A3
+      [0.3, 0.1, 0.4, 0.1, 0.1, 0.0, 0.0], // De C4
+      [0.1, 0.3, 0.1, 0.4, 0.1, 0.0, 0.0], // De D4
+      [0.1, 0.1, 0.3, 0.1, 0.3, 0.1, 0.0], // De E4
+      [0.0, 0.1, 0.1, 0.3, 0.1, 0.3, 0.1], // De G4
+      [0.1, 0.0, 0.1, 0.1, 0.3, 0.1, 0.3], // De A4
+      [0.0, 0.0, 0.0, 0.2, 0.2, 0.5, 0.1], // De C5
+    ];
+
+    // Escolhe a próxima nota baseada na probabilidade da nota atual
+    const currentState = currentMarkovStateRef.current;
+    const probabilities = MARKOV_MATRIX[currentState];
+    const rand = Math.random();
+    let cumulative = 0;
+    let nextState = currentState;
+
+    for (let i = 0; i < probabilities.length; i++) {
+      cumulative += probabilities[i];
+      if (rand <= cumulative) {
+        nextState = i;
+        break;
+      }
+    }
+    
+    currentMarkovStateRef.current = nextState;
+    const freq = PENTATONIC_NOTES[nextState];
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine'; // Som suave e harmonioso
+    osc.frequency.value = freq;
+
+    // Volume baseado na opacidade da linha (força da conexão)
+    const volume = Math.max(0.02, Math.min(0.15, opacity)); // Reduzido um pouco para o reverb não embolar
+
+    // Envelope etéreo (ataque lento, release muito longo)
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.15); // 150ms attack (pad/swell)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5); // 1.5s release
+
+    osc.connect(gain);
+    gain.connect(master);
+    if (convolver) gain.connect(convolver); // Envia para a Caverna (Reverb)
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 1.5);
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = canvas.width = canvas.offsetWidth;
+    let height = canvas.height = canvas.offsetHeight;
+    
+    class Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      radius: number;
+      baseRadius: number;
+      life: number;
+      maxLife: number;
+
+      constructor(x?: number, y?: number, isTemporary: boolean = false) {
+        this.x = x ?? Math.random() * width;
+        this.y = y ?? Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.8;
+        this.vy = (Math.random() - 0.5) * 0.8;
+        this.baseRadius = Math.random() * 2 + 1.5; // 3px to 7px diameter
+        this.radius = this.baseRadius;
+        this.maxLife = isTemporary ? Math.random() * 100 + 100 : Infinity;
+        this.life = this.maxLife;
+      }
+
+      update(mouseX: number, mouseY: number, isHovering: boolean) {
+        // Gravitational pull towards mouse
+        if (isHovering) {
+          const dx = mouseX - this.x;
+          const dy = mouseY - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 250) {
+            const force = (250 - dist) / 250;
+            this.vx += (dx / dist) * force * 0.05;
+            this.vy += (dy / dist) * force * 0.05;
+          }
+        }
+
+        // Friction / Speed limit
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        if (speed > 1.5) {
+          this.vx = (this.vx / speed) * 1.5;
+          this.vy = (this.vy / speed) * 1.5;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Wrap around
+        if (this.x < 0) this.x = width;
+        if (this.x > width) this.x = 0;
+        if (this.y < 0) this.y = height;
+        if (this.y > height) this.y = 0;
+
+        if (this.maxLife !== Infinity) {
+          this.life--;
+        }
+      }
+
+      draw(ctx: CanvasRenderingContext2D) {
+        const opacity = this.maxLife !== Infinity ? (this.life / this.maxLife) * 0.6 : 0.6;
+        
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 253, 231, ${opacity})`; // Ocre Suave core
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#CCFF00'; // Accent color glow
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    let particles: Particle[] = [];
+    const initParticles = () => {
+      particles = [];
+      const numParticles = Math.min(Math.floor((width * height) / 12000), 100); // Optimized count
+      for (let i = 0; i < numParticles; i++) {
+        particles.push(new Particle());
+      }
+    };
+    initParticles();
+
+    let animationFrameId: number;
+    let mouseX = -1000;
+    let mouseY = -1000;
+    let isHovering = false;
+
+    const draw = () => {
+      animationFrameId = requestAnimationFrame(draw);
+
+      // --- AUDIO LOGIC: Sequencer ---
+      try {
+        if (isHovering && isAudioInitialized.current && audioCtxRef.current?.state === 'running') {
+          const now = audioCtxRef.current.currentTime;
+          
+          // Initialize nextNoteTime if it's 0 or too far in the past
+          if (nextNoteTimeRef.current === 0 || nextNoteTimeRef.current < now) {
+            nextNoteTimeRef.current = now + 0.05;
+          }
+
+          // Lookahead scheduling (schedule notes slightly ahead of time)
+          while (nextNoteTimeRef.current < now + 0.1) {
+            const speed = Math.min(smoothedSpeedRef.current, 50);
+            
+            // Dynamic tempo: 70 BPM (idle) to 160 BPM (fast)
+            const targetTempo = 70 + (speed / 50) * 90;
+            tempoRef.current = tempoRef.current * 0.95 + targetTempo * 0.05;
+            
+            const secondsPerBeat = 60.0 / tempoRef.current;
+            const secondsPerSixteenth = secondsPerBeat / 4;
+            
+            const step = currentStepRef.current;
+            let playKick = false;
+            let playTick = false;
+            let playBass = false;
+            
+            // Rhythmic variations based on speed
+            if (speed < 5) {
+               // Very slow: Ambient heartbeat
+               if (step === 0) playKick = true;
+               if (step === 8) playBass = true;
+            } else if (speed < 20) {
+               // Medium: Steady groove
+               if (step === 0 || step === 8) playKick = true;
+               if (step === 4 || step === 12) playTick = true;
+               if (step === 10) playBass = true; // Syncopated bass
+            } else {
+               // Fast: Urgent, syncopated techno/glitch feel
+               if (step === 0 || step === 3 || step === 8 || step === 11) playKick = true;
+               if (step % 2 === 1) playTick = true;
+               if (step === 6 || step === 14) playBass = true;
+            }
+
+            const scheduleTime = nextNoteTimeRef.current;
+            if (playKick) playPulse(speed, 'kick', scheduleTime);
+            if (playTick) playPulse(speed, 'tick', scheduleTime);
+            if (playBass) playPulse(speed, 'bass', scheduleTime);
+            
+            nextNoteTimeRef.current += secondsPerSixteenth;
+            currentStepRef.current = (step + 1) % 16;
+          }
+        }
+      } catch (e) {
+        console.error("Audio sequencer error:", e);
+      }
+
+      // Trail effect
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; // Dark background fade for motion blur
+      ctx.fillRect(0, 0, width, height);
+
+      // Smooth merging
+      ctx.globalCompositeOperation = 'screen';
+
+      let currentConnections = new Set<string>();
+
+      // Update and draw particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update(mouseX, mouseY, isHovering);
+        p.draw(ctx);
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        // Constellation connections
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p.x - p2.x;
+          const dy = p.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            const opacity = (1 - dist / 120) * 0.4;
+            ctx.strokeStyle = `rgba(204, 255, 0, ${opacity * 0.8})`; // Accent color tint
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            // --- AUDIO LOGIC: Connection Notes ---
+            const pairId = `${i}-${j}`;
+            currentConnections.add(pairId);
+
+            // Check if this is a NEW connection near the mouse
+            if (isHovering && isAudioInitialized.current && audioCtxRef.current?.state === 'running') {
+              const distToMouse = Math.sqrt(Math.pow(p.x - mouseX, 2) + Math.pow(p.y - mouseY, 2));
+              if (distToMouse < 150 && !previousConnectionsRef.current.has(pairId)) {
+                // Throttle note generation slightly to avoid overwhelming
+                if (Math.random() > 0.5) {
+                  playPentatonicNote(opacity);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      previousConnectionsRef.current = currentConnections;
+      
+      // Decay speed
+      smoothedSpeedRef.current *= 0.95;
+    };
+
+    draw();
+
+    const handleResize = () => {
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+      initParticles();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    const updateInteraction = (clientX: number, clientY: number, target: HTMLElement) => {
+      if (!isAudioInitialized.current) {
+        initAudio();
+      }
+
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      
+      const rect = parent.getBoundingClientRect();
+      const newMouseX = clientX - rect.left;
+      const newMouseY = clientY - rect.top;
+      
+      // Calculate speed
+      if (isHovering) {
+        const dx = newMouseX - lastMousePosRef.current.x;
+        const dy = newMouseY - lastMousePosRef.current.y;
+        const speed = Math.sqrt(dx*dx + dy*dy);
+        smoothedSpeedRef.current = smoothedSpeedRef.current * 0.8 + speed * 0.2;
+      }
+
+      mouseX = newMouseX;
+      mouseY = newMouseY;
+      lastMousePosRef.current = { x: mouseX, y: mouseY };
+      isHovering = true;
+
+      // Update Audio
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        // Attempt to resume on move (browser might block until first tap/click, but we try)
+        audioCtxRef.current.resume().catch(() => {});
+      }
+
+      // --- DRONE LAYER MODULATION ---
+      if (audioCtxRef.current && droneOscRef.current && droneFilterRef.current && droneGainRef.current) {
+        const now = audioCtxRef.current.currentTime;
+        
+        // Mapeamento de Frequência (Tom): X -> Frequência (grave à esquerda, agudo à direita)
+        const xRatio = Math.max(0, Math.min(1, mouseX / width));
+        const minFreq = 100; // Grave profundo
+        const maxFreq = 400; // Médio suave
+        const targetFreq = minFreq * Math.pow(maxFreq / minFreq, xRatio);
+        droneOscRef.current.frequency.setTargetAtTime(targetFreq, now, 0.5);
+
+        // Mapeamento de Filtro (Brilho/Timbre): Y -> Cutoff (brilhante no topo, abafado embaixo)
+        const yRatio = Math.max(0, Math.min(1, mouseY / height));
+        const minCutoff = 200;
+        const maxCutoff = 2500;
+        // Invert Y so top is bright (high cutoff) and bottom is muffled (low cutoff)
+        const targetCutoff = maxCutoff * Math.pow(minCutoff / maxCutoff, yRatio);
+        droneFilterRef.current.frequency.setTargetAtTime(targetCutoff, now, 0.5);
+
+        // Fade in volume when hovering (suave e atmosférico)
+        droneGainRef.current.gain.setTargetAtTime(0.15, now, 0.8);
+      }
+      
+      if (target.closest('h1') || target.closest('input')) {
+        // Inject new temporary particles on hover movement
+        if (Math.random() > 0.7 && particles.length < 250) {
+          for(let i = 0; i < 2; i++) {
+            particles.push(new Particle(
+              mouseX + (Math.random() - 0.5) * 40, 
+              mouseY + (Math.random() - 0.5) * 40,
+              true
+            ));
+          }
+        }
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      updateInteraction(e.clientX, e.clientY, e.target as HTMLElement);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        updateInteraction(e.touches[0].clientX, e.touches[0].clientY, e.target as HTMLElement);
+      }
+    };
+
+    const handleInteractionEnd = () => {
+      isHovering = false;
+      mouseX = -1000;
+      mouseY = -1000;
+
+      // Fade out drone
+      if (audioCtxRef.current && droneGainRef.current) {
+        droneGainRef.current.gain.setTargetAtTime(0, audioCtxRef.current.currentTime, 1.0);
+      }
+    };
+
+    const handleGlobalInteraction = () => {
+      if (!isAudioInitialized.current) initAudio();
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+    };
+
+    // Global listeners to unlock audio on any interaction
+    window.addEventListener('click', handleGlobalInteraction);
+    window.addEventListener('touchstart', handleGlobalInteraction);
+    window.addEventListener('keydown', handleGlobalInteraction);
+    window.addEventListener('mousemove', handleGlobalInteraction);
+    window.addEventListener('touchmove', handleGlobalInteraction);
+
+    const parent = canvas.parentElement;
+    if (parent) {
+      parent.addEventListener('mousemove', handleMouseMove);
+      parent.addEventListener('mouseleave', handleInteractionEnd);
+      parent.addEventListener('touchmove', handleTouchMove, { passive: true });
+      parent.addEventListener('touchend', handleInteractionEnd);
+    }
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('click', handleGlobalInteraction);
+      window.removeEventListener('touchstart', handleGlobalInteraction);
+      window.removeEventListener('keydown', handleGlobalInteraction);
+      window.removeEventListener('mousemove', handleGlobalInteraction);
+      window.removeEventListener('touchmove', handleGlobalInteraction);
+      if (parent) {
+        parent.removeEventListener('mousemove', handleMouseMove);
+        parent.removeEventListener('mouseleave', handleInteractionEnd);
+        parent.removeEventListener('touchmove', handleTouchMove);
+        parent.removeEventListener('touchend', handleInteractionEnd);
+      }
+    };
+  }, []);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="absolute inset-0 w-full h-full opacity-100 pointer-events-none rounded-xl z-0"
+    />
+  );
+};
+
 const InteractiveTitle = ({ 
   text, 
   lines,
@@ -115,11 +703,11 @@ const InteractiveTitle = ({
   
   return (
     <div className="perspective-[1000px] w-full flex flex-col items-center justify-center text-center">
-      <h1 className="w-full">
+      <h1 className="w-full flex flex-col gap-2 md:gap-4">
         {contentLines.map((line, lineIdx) => {
           const words = line.text.split(' ');
           return (
-            <div key={lineIdx} className={line.className || className}>
+            <div key={lineIdx} className={`py-2 ${line.className || className}`}>
             {words.map((word, wordIdx) => {
               const isHighlighted = highlights.some(h => word.toLowerCase().includes(h.toLowerCase()));
               return (
@@ -127,13 +715,13 @@ const InteractiveTitle = ({
                   {word.split('').map((char, charIdx) => (
                     <motion.span
                       key={charIdx}
-                      initial={{ opacity: 0, filter: 'blur(20px)', rotateY: 60, rotateX: 45, z: -150, y: 20 }}
-                      whileInView={{ opacity: 1, filter: 'blur(0px)', rotateY: 0, rotateX: 0, z: 0, y: 0 }}
-                      viewport={{ once: true, margin: "-50px" }}
+                      initial={{ y: 40, opacity: 0, rotateZ: 5, scale: 0.9, filter: 'blur(10px)' }}
+                      whileInView={{ y: 0, opacity: 1, rotateZ: 0, scale: 1, filter: 'blur(0px)' }}
+                      viewport={{ once: true, margin: "0px" }}
                       transition={{ 
-                        delay: (lineIdx * 0.1) + (wordIdx * 0.05) + (charIdx * 0.03),
-                        duration: 1.4,
-                        ease: [0.2, 0.8, 0.2, 1]
+                        delay: (lineIdx * 0.15) + (wordIdx * 0.05) + (charIdx * 0.02),
+                        duration: 1.2,
+                        ease: [0.16, 1, 0.3, 1] // Custom smooth easing (Expo/Circ out)
                       }}
                       className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
                       whileHover={{ 
@@ -191,6 +779,143 @@ const InteractiveTitle = ({
   );
 };
 
+const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
+  const [text1, setText1] = useState("V.I.S.T.O");
+  const [text2, setText2] = useState("LAB");
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  const handleMouseOver = () => {
+    let iteration = 0;
+    const target1 = "V.I.S.T.O";
+    const target2 = "LAB";
+    
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    intervalRef.current = setInterval(() => {
+      setText1(
+        target1
+          .split("")
+          .map((letter, index) => {
+            if(letter === '.') return '.';
+            if(index < iteration) return target1[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+      
+      setText2(
+        target2
+          .split("")
+          .map((letter, index) => {
+            if(index < iteration) return target2[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+
+      if(iteration >= Math.max(target1.length, target2.length)){
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+
+      iteration += 1 / 3;
+    }, 30);
+  };
+
+  return (
+    <h1 
+      onClick={onClick}
+      onMouseEnter={handleMouseOver}
+      className="font-mono text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-2 py-1 md:px-3 md:py-2 rounded-2xl transition-all duration-300 flex items-center gap-1 md:gap-2 group shrink-0"
+    >
+      <span>{text1}</span> <span className="text-accent group-hover:text-white transition-colors duration-300">{text2}</span>
+    </h1>
+  );
+};
+
+const ScrambleNavItem = ({ text, onClick, isActive }: { text: string, onClick: () => void, isActive: boolean }) => {
+  const [displayText, setDisplayText] = useState(text);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  const handleMouseOver = () => {
+    let iteration = 0;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    intervalRef.current = setInterval(() => {
+      setDisplayText(
+        text
+          .split("")
+          .map((char, index) => {
+            if(char === ' ') return ' ';
+            if(index < iteration) return text[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+
+      if(iteration >= text.length){
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+
+      iteration += 1 / 3;
+    }, 30);
+  };
+
+  return (
+    <button 
+      onClick={onClick}
+      onMouseEnter={handleMouseOver}
+      className={`font-mono text-[8px] md:text-[9px] lg:text-[10px] xl:text-xs uppercase tracking-[0.05em] md:tracking-[0.1em] xl:tracking-[0.2em] px-1 md:px-2 xl:px-4 py-1 md:py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap ${isActive ? 'text-accent' : 'text-white'}`}
+    >
+      {displayText}
+    </button>
+  );
+};
+
+const ScramblePageTitle = ({ text, className }: { text: string, className?: string }) => {
+  const [displayText, setDisplayText] = useState(text);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  const handleMouseOver = () => {
+    let iteration = 0;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    intervalRef.current = setInterval(() => {
+      setDisplayText(
+        text
+          .split("")
+          .map((char, index) => {
+            if(char === ' ' || char === '.' || char === 'Ⓐ') return char;
+            if(index < iteration) return text[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+
+      if(iteration >= text.length){
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+
+      iteration += 1 / 3;
+    }, 30);
+  };
+
+  useEffect(() => {
+    handleMouseOver();
+  }, [text]);
+
+  return (
+    <h2 
+      onMouseEnter={handleMouseOver}
+      className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-4 py-2 -ml-4 rounded-2xl inline-block`}
+    >
+      {displayText}
+    </h2>
+  );
+};
+
 const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout, y, bg, blur }: { 
   onToggleMenu: () => void; 
   isMenuOpen: boolean; 
@@ -204,37 +929,33 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
 }) => (
   <motion.header 
     style={{ y, backgroundColor: bg, backdropFilter: blur }}
-    className="fixed top-0 left-0 w-full z-50 px-6 py-6 flex justify-between items-center transition-colors duration-300 border-b border-white/5"
+    className="fixed top-0 left-0 w-full z-50 px-4 sm:px-6 py-4 flex justify-between items-center transition-colors duration-300 border-b border-white/5 overflow-x-auto no-scrollbar"
   >
-    <div className="pointer-events-auto flex items-center gap-8">
-      <Magnetic strength={0.2}>
-        <h1 
-          onClick={() => setView('gallery')}
-          className="font-display text-2xl font-bold tracking-tighter uppercase cursor-pointer"
-        >
-          V.I.S.T.O <span className="text-accent">Lab</span>
-        </h1>
-      </Magnetic>
-      <nav className="hidden sm:flex gap-6 font-mono text-[10px] uppercase tracking-[0.2em]">
-        <button onClick={() => setView('gallery')} className={`hover:text-accent transition-colors ${currentView === 'gallery' ? 'text-accent' : ''}`}>Galeria</button>
-        <button onClick={() => setView('courses')} className={`hover:text-accent transition-colors ${currentView === 'courses' ? 'text-accent' : ''}`}>Workshops</button>
-        <button onClick={() => setView('live')} className={`hover:text-accent transition-colors ${currentView === 'live' ? 'text-accent' : ''}`}>Ao Vivo</button>
+    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 xl:gap-8">
+      <ScrambleTitle onClick={() => setView('gallery')} />
+      <nav className="hidden md:flex items-center gap-1 md:gap-2 xl:gap-4">
+        <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} />
+        <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} />
+        <ScrambleNavItem text="Ao Vivo" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} />
+        <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} />
+        <ScrambleNavItem text="SonorⒶ" onClick={() => currentView === 'sonora' ? setView('gallery') : setView('sonora')} isActive={currentView === 'sonora'} />
+        <ScrambleNavItem text="Podcast" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} />
       </nav>
     </div>
-    <div className="pointer-events-auto flex items-center gap-4">
+    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0">
       {user ? (
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-[10px] uppercase opacity-50 hidden sm:inline">Olá, {user.displayName || 'Usuário'}</span>
-          <button onClick={onLogout} className="p-2 hover:text-accent"><LogOut size={20} /></button>
+        <div className="flex items-center gap-2 md:gap-4">
+          <span className="font-mono text-[9px] md:text-[10px] uppercase opacity-50 hidden sm:inline whitespace-nowrap">Olá, {user.displayName || 'Usuário'}</span>
+          <button onClick={onLogout} className="p-2 hover:text-accent"><LogOut size={18} className="md:w-5 md:h-5" /></button>
         </div>
       ) : (
-        <button onClick={() => setView('login')} className="p-2 hover:text-accent"><User size={24} /></button>
+        <button onClick={() => setView('login')} className="p-2 hover:text-accent"><User size={20} className="md:w-6 md:h-6" /></button>
       )}
       <button 
         onClick={onToggleMenu}
-        className="p-2 hover:text-accent transition-colors"
+        className="p-2 hover:text-accent transition-colors md:hidden"
       >
-        {isMenuOpen ? <X size={32} /> : <Menu size={32} />}
+        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
     </div>
   </motion.header>
@@ -502,7 +1223,10 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
   const menuItems: { label: string; view: View }[] = [
     { label: 'Galeria', view: 'gallery' },
     { label: 'Workshops', view: 'courses' },
-    { label: 'Ao Vivo', view: 'live' }
+    { label: 'Ao Vivo', view: 'live' },
+    { label: 'Artistas', view: 'artists' },
+    { label: 'SonorⒶ', view: 'sonora' },
+    { label: 'Podcast', view: 'podcast' }
   ];
 
   return (
@@ -513,21 +1237,21 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed inset-0 z-[100] bg-bg flex flex-col justify-center items-center p-12"
+          className="fixed inset-0 z-[100] bg-bg flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto"
         >
           <button 
             onClick={onClose}
-            className="absolute top-8 right-8 p-2 hover:text-accent transition-colors"
+            className="absolute top-6 right-6 sm:top-8 sm:right-8 p-2 hover:text-accent transition-colors z-10"
           >
             <X size={40} />
           </button>
 
-          <nav className="flex flex-col gap-8 text-center">
+          <nav className="flex flex-col gap-6 sm:gap-8 text-center my-auto py-20">
             {menuItems.map((item) => (
               <motion.button
                 key={item.view}
                 onClick={() => { setView(item.view); onClose(); }}
-                className={`font-display text-5xl md:text-7xl font-bold uppercase tracking-tighter hover:text-accent transition-colors ${currentView === item.view ? 'text-accent' : ''}`}
+                className={`font-display text-4xl sm:text-5xl md:text-6xl font-bold uppercase tracking-tighter hover:text-accent transition-colors ${currentView === item.view ? 'text-accent' : ''}`}
                 whileHover={{ x: 20 }}
               >
                 {item.label}
@@ -675,8 +1399,9 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
                 <iframe 
                   src={`https://openprocessing.org/sketch/${artwork.openProcessingId}/embed/`}
                   className="w-full h-full border-none"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="camera; microphone; display-capture; geolocation"
                   allowFullScreen
+                  sandbox="allow-same-origin allow-scripts"
                 />
               ) : (
                 <>
@@ -762,13 +1487,42 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
 };
 
 const LogosFooter = () => (
-  <footer className="w-full px-[2%] py-[40px] bg-[#CCFF00] flex justify-center transition-all duration-500 ease-in-out group overflow-hidden">
-    <img 
-      src="https://lh3.googleusercontent.com/d/1fs54ghIfUMm9DmJ0Yp-FqC0Dug-JOaDg" 
-      alt="Logos Institucionais" 
-      className="w-full max-w-[1920px] h-auto block group-hover:scale-105 transition-all duration-500 ease-in-out" 
-      referrerPolicy="no-referrer"
-    />
+  <footer className="relative w-full px-[2%] py-[40px] bg-[#CCFF00] hover:bg-black flex justify-center overflow-hidden group cursor-crosshair transition-colors duration-500">
+    {/* CRT Scanline Overlay */}
+    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 z-20 transition-opacity duration-500 bg-[linear-gradient(rgba(204,255,0,0)_50%,rgba(204,255,0,0.1)_50%)] bg-[length:100%_4px]" />
+    
+    {/* Top Neon Border Glow */}
+    <div className="absolute top-0 left-0 w-full h-[1px] bg-[#CCFF00] shadow-[0_0_15px_#CCFF00] z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+    <div className="relative w-full max-w-[1920px] transition-transform duration-700 group-hover:scale-[1.01]">
+      {/* Main Image */}
+      <img 
+        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
+        alt="Logos Institucionais" 
+        className="w-full h-auto block relative z-10 transition-all duration-500 group-hover:invert group-hover:drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]" 
+        referrerPolicy="no-referrer"
+      />
+      
+      {/* Chromatic Aberration - Cyan */}
+      <img 
+        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
+        alt="" 
+        className="absolute top-0 left-0 w-full h-auto block z-0 opacity-0 group-hover:opacity-70 transition-all duration-200 -translate-x-[2px] translate-y-[1px] group-hover:invert mix-blend-screen" 
+        style={{ filter: 'drop-shadow(3px 0 0 #00FFFF)' }}
+        referrerPolicy="no-referrer"
+        aria-hidden="true"
+      />
+      
+      {/* Chromatic Aberration - Magenta */}
+      <img 
+        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
+        alt="" 
+        className="absolute top-0 left-0 w-full h-auto block z-0 opacity-0 group-hover:opacity-70 transition-all duration-300 translate-x-[2px] -translate-y-[1px] group-hover:invert mix-blend-screen" 
+        style={{ filter: 'drop-shadow(-3px 0 0 #FF00FF)' }}
+        referrerPolicy="no-referrer"
+        aria-hidden="true"
+      />
+    </div>
   </footer>
 );
 
@@ -808,6 +1562,14 @@ function AppContent() {
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [studentSubmissions, setStudentSubmissions] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleNavigate = (newView: View) => {
+    setView(newView);
+    setFilter('All');
+    setSearchQuery('');
+    setIsSearchActive(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Fetch Submissions
   useEffect(() => {
@@ -879,7 +1641,7 @@ function AppContent() {
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      setView('courses');
+      handleNavigate('courses');
     } catch (error) {
       console.error("Login Error", error);
     }
@@ -888,7 +1650,7 @@ function AppContent() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      setView('gallery');
+      handleNavigate('gallery');
     } catch (error) {
       console.error("Logout Error", error);
     }
@@ -966,7 +1728,7 @@ function AppContent() {
         onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} 
         isMenuOpen={isMenuOpen} 
         currentView={view}
-        setView={setView}
+        setView={handleNavigate}
         user={user}
         onLogout={handleLogout}
         y={headerY}
@@ -977,7 +1739,7 @@ function AppContent() {
       <MenuOverlay 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
-        setView={setView}
+        setView={handleNavigate}
         currentView={view}
       />
       
@@ -985,98 +1747,105 @@ function AppContent() {
 
       {view === 'gallery' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
-          {/* Intro Section */}
-          <motion.section 
-            style={{ y: introY, opacity: introOpacity }}
-            className="mb-24 w-full bg-black py-12 px-4 rounded-xl border border-white/5 mx-auto flex flex-col items-center justify-center text-center"
-          >
-            <InteractiveTitle 
-              lines={[
-                { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.4rem] sm:text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight" },
-                { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.3rem] sm:text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight mb-2" },
-                { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.1rem] sm:text-[1.4rem] md:text-[1.8rem] font-medium leading-tight tracking-tight" }
-              ]}
-              highlights={['LUGARZINHO']}
-            />
-          </motion.section>
-
-          {/* Search and Advanced Filters */}
-          <div className="mb-12 space-y-6">
-            <div className={`flex flex-col gap-4 transition-all duration-500 ${isSearchActive ? 'opacity-100' : 'max-w-xs'}`}>
-              <div className={`relative flex-1 group transition-all duration-300 ${isSearchActive ? 'search-focus' : ''}`}>
-                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearchActive ? 'text-accent' : 'opacity-30'}`} size={18} />
-                <input 
-                  type="text" 
-                  placeholder="DIGITE AQUI..." 
-                  value={searchQuery}
-                  onFocus={() => setIsSearchActive(true)}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full bg-white/5 border py-4 pl-12 pr-4 font-mono text-xs uppercase tracking-widest outline-none transition-all duration-300 ${
-                    isSearchActive 
-                      ? 'border-accent text-accent' 
-                      : 'border-white/10 opacity-60 hover:opacity-100'
-                  }`}
+          {/* Hero Section (Title + Search) */}
+          <div className="relative mb-12 w-full bg-black rounded-xl border border-white/5 overflow-hidden">
+            <ConstellationBackground />
+            
+            <div className="relative z-10 w-full px-4 py-12 md:py-20 flex flex-col items-center">
+              {/* Intro Section */}
+              <motion.section 
+                style={{ y: introY, opacity: introOpacity }}
+                className="w-full mb-16 flex flex-col items-center justify-center text-center pointer-events-auto"
+              >
+                <InteractiveTitle 
+                  lines={[
+                    { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.8rem] sm:text-[3rem] md:text-[4rem] lg:text-[5rem] font-bold leading-tight tracking-tight" },
+                    { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.6rem] sm:text-[2.8rem] md:text-[3.5rem] lg:text-[4.5rem] font-bold leading-tight tracking-tight mb-2" },
+                    { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.2rem] sm:text-[1.8rem] md:text-[2rem] lg:text-[2.5rem] font-medium leading-tight tracking-tight" }
+                  ]}
+                  highlights={['LUGARZINHO']}
                 />
-                {isSearchActive && (
-                  <button 
-                    onClick={() => {
-                      setIsSearchActive(false);
-                      setSearchQuery('');
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-accent hover:scale-110 transition-transform"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-              
-              <AnimatePresence>
-                {isSearchActive && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex flex-wrap gap-2 items-center py-2">
-                      <span className="font-mono text-[9px] uppercase tracking-widest opacity-40 mr-2 text-accent">Filtrar resultado com:</span>
-                      {(['OBRAS', 'ARTISTAS', 'DATA', 'TAGS'] as const).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => setSearchFilterType(type)}
-                          className={`px-4 py-2 font-mono text-[10px] uppercase tracking-widest border transition-all ${
-                            searchFilterType === type 
-                              ? 'bg-accent text-bg border-accent' 
-                              : 'border-accent/20 text-accent/60 hover:border-accent/60'
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+              </motion.section>
 
-            {/* Categories - Only show if search is not active to keep it clean, or keep them as secondary */}
-            {!isSearchActive && (
-              <div className="flex flex-wrap gap-3 border-t border-white/5 pt-6">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setFilter(cat)}
-                    className={`font-mono text-[9px] uppercase tracking-[0.2em] px-4 py-2 border transition-all ${
-                      filter === cat 
-                        ? 'bg-accent text-bg border-accent' 
-                        : 'border-white/10 hover:border-white/40'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              {/* Search and Advanced Filters */}
+              <div className="w-full max-w-5xl mx-auto space-y-6 pointer-events-auto">
+                <div className={`flex flex-col gap-4 transition-all duration-500 ${isSearchActive ? 'opacity-100' : 'max-w-md mx-auto'}`}>
+                  <div className={`relative flex-1 group transition-all duration-300 ${isSearchActive ? 'search-focus' : ''}`}>
+                    <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearchActive ? 'text-accent' : 'opacity-30'}`} size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="DIGITE AQUI..." 
+                      value={searchQuery}
+                      onFocus={() => setIsSearchActive(true)}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full bg-white/5 border py-4 pl-12 pr-4 font-mono text-xs uppercase tracking-widest outline-none transition-all duration-300 ${
+                        isSearchActive 
+                          ? 'border-accent text-accent bg-black/50 backdrop-blur-md' 
+                          : 'border-white/10 opacity-80 hover:opacity-100 bg-black/20 backdrop-blur-sm'
+                      }`}
+                    />
+                    {isSearchActive && (
+                      <button 
+                        onClick={() => {
+                          setIsSearchActive(false);
+                          setSearchQuery('');
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-accent hover:scale-110 transition-transform"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <AnimatePresence>
+                    {isSearchActive && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="flex flex-wrap gap-2 items-center py-2 justify-center">
+                          <span className="font-mono text-[9px] uppercase tracking-widest opacity-60 mr-2 text-accent">Filtrar resultado com:</span>
+                          {(['OBRAS', 'ARTISTAS', 'DATA', 'TAGS'] as const).map((type) => (
+                            <button
+                              key={type}
+                              onClick={() => setSearchFilterType(type)}
+                              className={`px-4 py-2 font-mono text-[10px] uppercase tracking-widest border transition-all ${
+                                searchFilterType === type 
+                                  ? 'bg-accent text-bg border-accent' 
+                                  : 'border-accent/30 text-accent/80 hover:border-accent/80 bg-black/40'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Categories */}
+                {!isSearchActive && (
+                  <div className="flex flex-wrap gap-3 border-t border-white/10 pt-6 justify-center">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setFilter(cat)}
+                        className={`font-mono text-[9px] uppercase tracking-[0.2em] px-4 py-2 border transition-all ${
+                          filter === cat 
+                            ? 'bg-accent text-bg border-accent' 
+                            : 'border-white/10 hover:border-white/40 bg-black/20 backdrop-blur-sm'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Grid */}
@@ -1095,15 +1864,15 @@ function AppContent() {
       {view === 'courses' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
           <button 
-            onClick={() => setView('gallery')}
+            onClick={() => handleNavigate('gallery')}
             className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <InteractiveTitle 
+            <ScramblePageTitle 
               text="VISTO LAB"
-              className="font-display text-6xl md:text-8xl font-bold uppercase tracking-tighter mb-6"
+              className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-6"
             />
             <p className="font-sans opacity-60 max-w-2xl text-lg leading-relaxed">Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia.</p>
           </section>
@@ -1111,7 +1880,7 @@ function AppContent() {
           {!user && (
             <div className="mb-12 p-8 border border-accent/30 bg-accent/5 flex flex-col md:flex-row justify-between items-center gap-6">
               <p className="font-display text-xl uppercase tracking-tight">Faça login para salvar seu progresso e obter certificados.</p>
-              <button onClick={() => setView('login')} className="px-8 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold">Entrar Agora</button>
+              <button onClick={() => handleNavigate('login')} className="px-8 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold">Entrar Agora</button>
             </div>
           )}
 
@@ -1131,13 +1900,13 @@ function AppContent() {
       {view === 'live' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
           <button 
-            onClick={() => setView('gallery')}
+            onClick={() => handleNavigate('gallery')}
             className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <h2 className="font-display text-6xl font-bold uppercase tracking-tighter mb-4">Transmissões ao Vivo</h2>
+            <ScramblePageTitle text="Transmissões ao Vivo" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
             <p className="font-sans opacity-60 max-w-2xl">Acompanhe as experimentações e performances em tempo real.</p>
           </section>
           
@@ -1146,6 +1915,60 @@ function AppContent() {
               <div className="w-4 h-4 bg-accent rounded-full animate-pulse mx-auto mb-4" />
               <p className="font-mono text-xs uppercase tracking-widest opacity-40">Nenhuma transmissão ativa no momento</p>
             </div>
+          </div>
+        </main>
+      )}
+
+      {view === 'artists' && (
+        <main className="pt-32 pb-24 px-6 md:px-12">
+          <button 
+            onClick={() => handleNavigate('gallery')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+          >
+            <ArrowLeft size={14} /> Voltar para Galeria
+          </button>
+          <section className="mb-16">
+            <ScramblePageTitle text="Artistas" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans opacity-60 max-w-2xl">Conheça os artistas residentes e colaboradores do V.I.S.T.O.</p>
+          </section>
+          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
+          </div>
+        </main>
+      )}
+
+      {view === 'sonora' && (
+        <main className="pt-32 pb-24 px-6 md:px-12">
+          <button 
+            onClick={() => handleNavigate('gallery')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+          >
+            <ArrowLeft size={14} /> Voltar para Galeria
+          </button>
+          <section className="mb-16">
+            <ScramblePageTitle text="SonorⒶ" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans opacity-60 max-w-2xl">Experimentações sonoras e paisagens auditivas.</p>
+          </section>
+          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
+          </div>
+        </main>
+      )}
+
+      {view === 'podcast' && (
+        <main className="pt-32 pb-24 px-6 md:px-12">
+          <button 
+            onClick={() => handleNavigate('gallery')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+          >
+            <ArrowLeft size={14} /> Voltar para Galeria
+          </button>
+          <section className="mb-16">
+            <ScramblePageTitle text="Podcast" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans opacity-60 max-w-2xl">Conversas, entrevistas e reflexões sobre arte e tecnologia.</p>
+          </section>
+          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
           </div>
         </main>
       )}
