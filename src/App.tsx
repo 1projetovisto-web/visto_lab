@@ -8,7 +8,7 @@ import {
   handleFirestoreError, OperationType, FirebaseUser
 } from './firebase';
 
-type View = 'gallery' | 'courses' | 'login' | 'live';
+type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -98,6 +98,237 @@ const Magnetic = ({ children, strength = 0.5 }: { children: ReactNode; strength?
 const ConstellationBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
+  // Audio state refs
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const convolverNodeRef = useRef<ConvolverNode | null>(null);
+  
+  // Drone state refs
+  const droneOscRef = useRef<OscillatorNode | null>(null);
+  const droneFilterRef = useRef<BiquadFilterNode | null>(null);
+  const droneGainRef = useRef<GainNode | null>(null);
+
+  const isAudioInitialized = useRef(false);
+  
+  // Interaction tracking
+  const smoothedSpeedRef = useRef(0);
+  const lastMousePosRef = useRef({ x: -1000, y: -1000 });
+  
+  // Sequencer state
+  const nextNoteTimeRef = useRef(0);
+  const currentStepRef = useRef(0);
+  const tempoRef = useRef(90);
+  const previousConnectionsRef = useRef<Set<string>>(new Set());
+  const currentMarkovStateRef = useRef(3); // Start at index 3 (E4)
+
+  const initAudio = () => {
+    if (isAudioInitialized.current) return;
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    
+    isAudioInitialized.current = true;
+    const ctx = new AudioContext();
+    audioCtxRef.current = ctx;
+
+    const masterGain = ctx.createGain();
+    const compressor = ctx.createDynamicsCompressor();
+    const convolver = ctx.createConvolver();
+    const reverbGain = ctx.createGain();
+
+    masterGain.gain.value = 0.4; // Volume geral
+
+    // --- CONVOLUTION REVERB (Caverna/Catedral) ---
+    // Gerando uma Resposta de Impulso (IR) sintética de 3 segundos
+    const sampleRate = ctx.sampleRate;
+    const duration = 3.0;
+    const decay = 3.0; // Cauda longa
+    const length = sampleRate * duration;
+    const impulse = ctx.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+    for (let i = 0; i < length; i++) {
+      const envelope = Math.pow(1 - i / length, decay);
+      left[i] = (Math.random() * 2 - 1) * envelope;
+      right[i] = (Math.random() * 2 - 1) * envelope;
+    }
+    convolver.buffer = impulse;
+    reverbGain.gain.value = 0.8; // Volume do Reverb (Wet)
+    
+    convolver.connect(reverbGain);
+    reverbGain.connect(compressor);
+    convolverNodeRef.current = convolver;
+
+    // Compressor para proteger contra picos
+    compressor.threshold.value = -24;
+    compressor.knee.value = 30;
+    compressor.ratio.value = 12;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.25;
+
+    masterGain.connect(compressor);
+    compressor.connect(ctx.destination);
+
+    masterGainRef.current = masterGain;
+
+    // --- DRONE LAYER (Ambient Background) ---
+    const droneOsc = ctx.createOscillator();
+    const droneOsc2 = ctx.createOscillator(); // Segundo oscilador para efeito "Chorus" etéreo
+    const droneFilter = ctx.createBiquadFilter();
+    const droneGain = ctx.createGain();
+
+    droneOsc.type = 'sine'; // Som puro e suave
+    droneOsc.frequency.value = 150; // Frequência base
+    
+    droneOsc2.type = 'sine';
+    droneOsc2.frequency.value = 152; // Levemente desafinado para criar batimento (beating) espacial
+
+    droneFilter.type = 'lowpass';
+    droneFilter.frequency.value = 800; // Filtro base
+
+    droneGain.gain.value = 0; // Começa mudo
+
+    droneOsc.connect(droneFilter);
+    droneOsc2.connect(droneFilter);
+    droneFilter.connect(droneGain);
+    droneGain.connect(masterGain); // Conecta ao master (antes do compressor)
+    if (convolverNodeRef.current) {
+        droneGain.connect(convolverNodeRef.current); // Envia o drone para a caverna também
+    }
+
+    droneOsc.start();
+    droneOsc2.start();
+
+    droneOscRef.current = droneOsc;
+    droneFilterRef.current = droneFilter;
+    droneGainRef.current = droneGain;
+  };
+
+  const playPulse = (speed: number, type: 'kick' | 'tick' | 'bass', time: number) => {
+    const ctx = audioCtxRef.current;
+    const master = masterGainRef.current;
+    const convolver = convolverNodeRef.current;
+    if (!ctx || !master) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    if (type === 'kick') {
+      osc.type = 'sine';
+      const baseFreq = 60 + (speed / 50) * 20; // Mais grave
+      osc.frequency.setValueAtTime(baseFreq, time);
+      osc.frequency.exponentialRampToValueAtTime(20, time + 0.2);
+
+      // Ataque mais suave (thud profundo em vez de click)
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.4, time + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+      
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(time);
+      osc.stop(time + 0.5);
+      
+    } else if (type === 'tick') {
+      // Substituindo o "tick" áspero por um "chime" etéreo de alta frequência
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(2000 + Math.random() * 500, time);
+      
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.02, time + 0.02); // Bem baixinho
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+      
+      osc.connect(gain);
+      gain.connect(master);
+      if (convolver) gain.connect(convolver); // Eco no chime
+      osc.start(time);
+      osc.stop(time + 0.15);
+      
+    } else if (type === 'bass') {
+      osc.type = 'sine'; // Trocado de triangle para sine para ficar mais aveludado
+      const bassNotes = [55.00, 65.41, 73.42, 82.41, 98.00]; // A1, C2, D2, E2, G2
+      const freq = bassNotes[Math.floor(Math.random() * bassNotes.length)];
+      osc.frequency.setValueAtTime(freq, time);
+      
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(150 + speed * 10, time);
+      filter.frequency.exponentialRampToValueAtTime(80, time + 0.3);
+
+      // Ataque bem lento para o baixo pulsar suavemente
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.2, time + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
+      
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(master);
+      if (convolver) gain.connect(convolver);
+      osc.start(time);
+      osc.stop(time + 0.6);
+    }
+  };
+
+  const playPentatonicNote = (opacity: number) => {
+    const ctx = audioCtxRef.current;
+    const master = masterGainRef.current;
+    const convolver = convolverNodeRef.current;
+    if (!ctx || !master) return;
+
+    // --- CADEIA DE MARKOV (Música Generativa) ---
+    // Escala Pentatônica (A menor: A3, C4, D4, E4, G4, A4, C5)
+    const PENTATONIC_NOTES = [220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+    
+    // Matriz de Transição (Probabilidades)
+    const MARKOV_MATRIX = [
+      [0.1, 0.4, 0.2, 0.1, 0.1, 0.1, 0.0], // De A3
+      [0.3, 0.1, 0.4, 0.1, 0.1, 0.0, 0.0], // De C4
+      [0.1, 0.3, 0.1, 0.4, 0.1, 0.0, 0.0], // De D4
+      [0.1, 0.1, 0.3, 0.1, 0.3, 0.1, 0.0], // De E4
+      [0.0, 0.1, 0.1, 0.3, 0.1, 0.3, 0.1], // De G4
+      [0.1, 0.0, 0.1, 0.1, 0.3, 0.1, 0.3], // De A4
+      [0.0, 0.0, 0.0, 0.2, 0.2, 0.5, 0.1], // De C5
+    ];
+
+    // Escolhe a próxima nota baseada na probabilidade da nota atual
+    const currentState = currentMarkovStateRef.current;
+    const probabilities = MARKOV_MATRIX[currentState];
+    const rand = Math.random();
+    let cumulative = 0;
+    let nextState = currentState;
+
+    for (let i = 0; i < probabilities.length; i++) {
+      cumulative += probabilities[i];
+      if (rand <= cumulative) {
+        nextState = i;
+        break;
+      }
+    }
+    
+    currentMarkovStateRef.current = nextState;
+    const freq = PENTATONIC_NOTES[nextState];
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine'; // Som suave e harmonioso
+    osc.frequency.value = freq;
+
+    // Volume baseado na opacidade da linha (força da conexão)
+    const volume = Math.max(0.02, Math.min(0.15, opacity)); // Reduzido um pouco para o reverb não embolar
+
+    // Envelope etéreo (ataque lento, release muito longo)
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.15); // 150ms attack (pad/swell)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5); // 1.5s release
+
+    osc.connect(gain);
+    gain.connect(master);
+    if (convolver) gain.connect(convolver); // Envia para a Caverna (Reverb)
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 1.5);
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -194,6 +425,62 @@ const ConstellationBackground = () => {
     const draw = () => {
       animationFrameId = requestAnimationFrame(draw);
 
+      // --- AUDIO LOGIC: Sequencer ---
+      try {
+        if (isHovering && isAudioInitialized.current && audioCtxRef.current?.state === 'running') {
+          const now = audioCtxRef.current.currentTime;
+          
+          // Initialize nextNoteTime if it's 0 or too far in the past
+          if (nextNoteTimeRef.current === 0 || nextNoteTimeRef.current < now) {
+            nextNoteTimeRef.current = now + 0.05;
+          }
+
+          // Lookahead scheduling (schedule notes slightly ahead of time)
+          while (nextNoteTimeRef.current < now + 0.1) {
+            const speed = Math.min(smoothedSpeedRef.current, 50);
+            
+            // Dynamic tempo: 70 BPM (idle) to 160 BPM (fast)
+            const targetTempo = 70 + (speed / 50) * 90;
+            tempoRef.current = tempoRef.current * 0.95 + targetTempo * 0.05;
+            
+            const secondsPerBeat = 60.0 / tempoRef.current;
+            const secondsPerSixteenth = secondsPerBeat / 4;
+            
+            const step = currentStepRef.current;
+            let playKick = false;
+            let playTick = false;
+            let playBass = false;
+            
+            // Rhythmic variations based on speed
+            if (speed < 5) {
+               // Very slow: Ambient heartbeat
+               if (step === 0) playKick = true;
+               if (step === 8) playBass = true;
+            } else if (speed < 20) {
+               // Medium: Steady groove
+               if (step === 0 || step === 8) playKick = true;
+               if (step === 4 || step === 12) playTick = true;
+               if (step === 10) playBass = true; // Syncopated bass
+            } else {
+               // Fast: Urgent, syncopated techno/glitch feel
+               if (step === 0 || step === 3 || step === 8 || step === 11) playKick = true;
+               if (step % 2 === 1) playTick = true;
+               if (step === 6 || step === 14) playBass = true;
+            }
+
+            const scheduleTime = nextNoteTimeRef.current;
+            if (playKick) playPulse(speed, 'kick', scheduleTime);
+            if (playTick) playPulse(speed, 'tick', scheduleTime);
+            if (playBass) playPulse(speed, 'bass', scheduleTime);
+            
+            nextNoteTimeRef.current += secondsPerSixteenth;
+            currentStepRef.current = (step + 1) % 16;
+          }
+        }
+      } catch (e) {
+        console.error("Audio sequencer error:", e);
+      }
+
       // Trail effect
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; // Dark background fade for motion blur
@@ -201,6 +488,8 @@ const ConstellationBackground = () => {
 
       // Smooth merging
       ctx.globalCompositeOperation = 'screen';
+
+      let currentConnections = new Set<string>();
 
       // Update and draw particles
       for (let i = particles.length - 1; i >= 0; i--) {
@@ -228,9 +517,29 @@ const ConstellationBackground = () => {
             ctx.strokeStyle = `rgba(204, 255, 0, ${opacity * 0.8})`; // Accent color tint
             ctx.lineWidth = 1.2;
             ctx.stroke();
+
+            // --- AUDIO LOGIC: Connection Notes ---
+            const pairId = `${i}-${j}`;
+            currentConnections.add(pairId);
+
+            // Check if this is a NEW connection near the mouse
+            if (isHovering && isAudioInitialized.current && audioCtxRef.current?.state === 'running') {
+              const distToMouse = Math.sqrt(Math.pow(p.x - mouseX, 2) + Math.pow(p.y - mouseY, 2));
+              if (distToMouse < 150 && !previousConnectionsRef.current.has(pairId)) {
+                // Throttle note generation slightly to avoid overwhelming
+                if (Math.random() > 0.5) {
+                  playPentatonicNote(opacity);
+                }
+              }
+            }
           }
         }
       }
+
+      previousConnectionsRef.current = currentConnections;
+      
+      // Decay speed
+      smoothedSpeedRef.current *= 0.95;
     };
 
     draw();
@@ -243,16 +552,60 @@ const ConstellationBackground = () => {
 
     window.addEventListener('resize', handleResize);
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const updateInteraction = (clientX: number, clientY: number, target: HTMLElement) => {
+      if (!isAudioInitialized.current) {
+        initAudio();
+      }
+
       const parent = canvas.parentElement;
       if (!parent) return;
       
       const rect = parent.getBoundingClientRect();
-      mouseX = e.clientX - rect.left;
-      mouseY = e.clientY - rect.top;
-      isHovering = true;
+      const newMouseX = clientX - rect.left;
+      const newMouseY = clientY - rect.top;
       
-      const target = e.target as HTMLElement;
+      // Calculate speed
+      if (isHovering) {
+        const dx = newMouseX - lastMousePosRef.current.x;
+        const dy = newMouseY - lastMousePosRef.current.y;
+        const speed = Math.sqrt(dx*dx + dy*dy);
+        smoothedSpeedRef.current = smoothedSpeedRef.current * 0.8 + speed * 0.2;
+      }
+
+      mouseX = newMouseX;
+      mouseY = newMouseY;
+      lastMousePosRef.current = { x: mouseX, y: mouseY };
+      isHovering = true;
+
+      // Update Audio
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        // Attempt to resume on move (browser might block until first tap/click, but we try)
+        audioCtxRef.current.resume().catch(() => {});
+      }
+
+      // --- DRONE LAYER MODULATION ---
+      if (audioCtxRef.current && droneOscRef.current && droneFilterRef.current && droneGainRef.current) {
+        const now = audioCtxRef.current.currentTime;
+        
+        // Mapeamento de Frequência (Tom): X -> Frequência (grave à esquerda, agudo à direita)
+        const xRatio = Math.max(0, Math.min(1, mouseX / width));
+        const minFreq = 100; // Grave profundo
+        const maxFreq = 400; // Médio suave
+        const targetFreq = minFreq * Math.pow(maxFreq / minFreq, xRatio);
+        droneOscRef.current.frequency.setTargetAtTime(targetFreq, now, 0.5);
+
+        // Mapeamento de Filtro (Brilho/Timbre): Y -> Cutoff (brilhante no topo, abafado embaixo)
+        const yRatio = Math.max(0, Math.min(1, mouseY / height));
+        const minCutoff = 200;
+        const maxCutoff = 2500;
+        // Invert Y so top is bright (high cutoff) and bottom is muffled (low cutoff)
+        const targetCutoff = maxCutoff * Math.pow(minCutoff / maxCutoff, yRatio);
+        droneFilterRef.current.frequency.setTargetAtTime(targetCutoff, now, 0.5);
+
+        // Fade in volume when hovering (suave e atmosférico)
+        droneGainRef.current.gain.setTargetAtTime(0.15, now, 0.8);
+      }
+      
       if (target.closest('h1') || target.closest('input')) {
         // Inject new temporary particles on hover movement
         if (Math.random() > 0.7 && particles.length < 250) {
@@ -267,24 +620,62 @@ const ConstellationBackground = () => {
       }
     };
 
-    const handleMouseLeave = () => {
+    const handleMouseMove = (e: MouseEvent) => {
+      updateInteraction(e.clientX, e.clientY, e.target as HTMLElement);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        updateInteraction(e.touches[0].clientX, e.touches[0].clientY, e.target as HTMLElement);
+      }
+    };
+
+    const handleInteractionEnd = () => {
       isHovering = false;
       mouseX = -1000;
       mouseY = -1000;
+
+      // Fade out drone
+      if (audioCtxRef.current && droneGainRef.current) {
+        droneGainRef.current.gain.setTargetAtTime(0, audioCtxRef.current.currentTime, 1.0);
+      }
     };
+
+    const handleGlobalInteraction = () => {
+      if (!isAudioInitialized.current) initAudio();
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+    };
+
+    // Global listeners to unlock audio on any interaction
+    window.addEventListener('click', handleGlobalInteraction);
+    window.addEventListener('touchstart', handleGlobalInteraction);
+    window.addEventListener('keydown', handleGlobalInteraction);
+    window.addEventListener('mousemove', handleGlobalInteraction);
+    window.addEventListener('touchmove', handleGlobalInteraction);
 
     const parent = canvas.parentElement;
     if (parent) {
       parent.addEventListener('mousemove', handleMouseMove);
-      parent.addEventListener('mouseleave', handleMouseLeave);
+      parent.addEventListener('mouseleave', handleInteractionEnd);
+      parent.addEventListener('touchmove', handleTouchMove, { passive: true });
+      parent.addEventListener('touchend', handleInteractionEnd);
     }
 
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('click', handleGlobalInteraction);
+      window.removeEventListener('touchstart', handleGlobalInteraction);
+      window.removeEventListener('keydown', handleGlobalInteraction);
+      window.removeEventListener('mousemove', handleGlobalInteraction);
+      window.removeEventListener('touchmove', handleGlobalInteraction);
       if (parent) {
         parent.removeEventListener('mousemove', handleMouseMove);
-        parent.removeEventListener('mouseleave', handleMouseLeave);
+        parent.removeEventListener('mouseleave', handleInteractionEnd);
+        parent.removeEventListener('touchmove', handleTouchMove);
+        parent.removeEventListener('touchend', handleInteractionEnd);
       }
     };
   }, []);
@@ -312,11 +703,11 @@ const InteractiveTitle = ({
   
   return (
     <div className="perspective-[1000px] w-full flex flex-col items-center justify-center text-center">
-      <h1 className="w-full">
+      <h1 className="w-full flex flex-col gap-2 md:gap-4">
         {contentLines.map((line, lineIdx) => {
           const words = line.text.split(' ');
           return (
-            <div key={lineIdx} className={line.className || className}>
+            <div key={lineIdx} className={`py-2 ${line.className || className}`}>
             {words.map((word, wordIdx) => {
               const isHighlighted = highlights.some(h => word.toLowerCase().includes(h.toLowerCase()));
               return (
@@ -324,13 +715,13 @@ const InteractiveTitle = ({
                   {word.split('').map((char, charIdx) => (
                     <motion.span
                       key={charIdx}
-                      initial={{ opacity: 0, filter: 'blur(20px)', rotateY: 60, rotateX: 45, z: -150, y: 20 }}
-                      whileInView={{ opacity: 1, filter: 'blur(0px)', rotateY: 0, rotateX: 0, z: 0, y: 0 }}
-                      viewport={{ once: true, margin: "-50px" }}
+                      initial={{ y: 40, opacity: 0, rotateZ: 5, scale: 0.9, filter: 'blur(10px)' }}
+                      whileInView={{ y: 0, opacity: 1, rotateZ: 0, scale: 1, filter: 'blur(0px)' }}
+                      viewport={{ once: true, margin: "0px" }}
                       transition={{ 
-                        delay: (lineIdx * 0.1) + (wordIdx * 0.05) + (charIdx * 0.03),
-                        duration: 1.4,
-                        ease: [0.2, 0.8, 0.2, 1]
+                        delay: (lineIdx * 0.15) + (wordIdx * 0.05) + (charIdx * 0.02),
+                        duration: 1.2,
+                        ease: [0.16, 1, 0.3, 1] // Custom smooth easing (Expo/Circ out)
                       }}
                       className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
                       whileHover={{ 
@@ -435,7 +826,7 @@ const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
     <h1 
       onClick={onClick}
       onMouseEnter={handleMouseOver}
-      className="font-mono text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white px-3 py-2 rounded-2xl transition-all duration-300 flex items-center gap-2 group"
+      className="font-mono text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-2 py-1 md:px-3 md:py-2 rounded-2xl transition-all duration-300 flex items-center gap-1 md:gap-2 group shrink-0"
     >
       <span>{text1}</span> <span className="text-accent group-hover:text-white transition-colors duration-300">{text2}</span>
     </h1>
@@ -475,10 +866,53 @@ const ScrambleNavItem = ({ text, onClick, isActive }: { text: string, onClick: (
     <button 
       onClick={onClick}
       onMouseEnter={handleMouseOver}
-      className={`font-mono text-xs sm:text-sm md:text-base uppercase tracking-[0.2em] px-4 py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white ${isActive ? 'text-accent' : 'text-white'}`}
+      className={`font-mono text-[8px] md:text-[9px] lg:text-[10px] xl:text-xs uppercase tracking-[0.05em] md:tracking-[0.1em] xl:tracking-[0.2em] px-1 md:px-2 xl:px-4 py-1 md:py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap ${isActive ? 'text-accent' : 'text-white'}`}
     >
       {displayText}
     </button>
+  );
+};
+
+const ScramblePageTitle = ({ text, className }: { text: string, className?: string }) => {
+  const [displayText, setDisplayText] = useState(text);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  const handleMouseOver = () => {
+    let iteration = 0;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    intervalRef.current = setInterval(() => {
+      setDisplayText(
+        text
+          .split("")
+          .map((char, index) => {
+            if(char === ' ' || char === '.' || char === 'Ⓐ') return char;
+            if(index < iteration) return text[index];
+            return letters[Math.floor(Math.random() * 26)];
+          })
+          .join("")
+      );
+
+      if(iteration >= text.length){
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+
+      iteration += 1 / 3;
+    }, 30);
+  };
+
+  useEffect(() => {
+    handleMouseOver();
+  }, [text]);
+
+  return (
+    <h2 
+      onMouseEnter={handleMouseOver}
+      className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-4 py-2 -ml-4 rounded-2xl inline-block`}
+    >
+      {displayText}
+    </h2>
   );
 };
 
@@ -495,30 +929,33 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
 }) => (
   <motion.header 
     style={{ y, backgroundColor: bg, backdropFilter: blur }}
-    className="fixed top-0 left-0 w-full z-50 px-6 py-6 flex justify-between items-center transition-colors duration-300 border-b border-white/5"
+    className="fixed top-0 left-0 w-full z-50 px-4 sm:px-6 py-4 flex justify-between items-center transition-colors duration-300 border-b border-white/5 overflow-x-auto no-scrollbar"
   >
-    <div className="pointer-events-auto flex items-center gap-8 lg:gap-16">
+    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 xl:gap-8">
       <ScrambleTitle onClick={() => setView('gallery')} />
-      <nav className="hidden sm:flex gap-4 md:gap-8">
+      <nav className="hidden md:flex items-center gap-1 md:gap-2 xl:gap-4">
         <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} />
-        <ScrambleNavItem text="Workshops" onClick={() => setView('courses')} isActive={currentView === 'courses'} />
-        <ScrambleNavItem text="Ao Vivo" onClick={() => setView('live')} isActive={currentView === 'live'} />
+        <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} />
+        <ScrambleNavItem text="Ao Vivo" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} />
+        <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} />
+        <ScrambleNavItem text="SonorⒶ" onClick={() => currentView === 'sonora' ? setView('gallery') : setView('sonora')} isActive={currentView === 'sonora'} />
+        <ScrambleNavItem text="Podcast" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} />
       </nav>
     </div>
-    <div className="pointer-events-auto flex items-center gap-4">
+    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0">
       {user ? (
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-[10px] uppercase opacity-50 hidden sm:inline">Olá, {user.displayName || 'Usuário'}</span>
-          <button onClick={onLogout} className="p-2 hover:text-accent"><LogOut size={20} /></button>
+        <div className="flex items-center gap-2 md:gap-4">
+          <span className="font-mono text-[9px] md:text-[10px] uppercase opacity-50 hidden sm:inline whitespace-nowrap">Olá, {user.displayName || 'Usuário'}</span>
+          <button onClick={onLogout} className="p-2 hover:text-accent"><LogOut size={18} className="md:w-5 md:h-5" /></button>
         </div>
       ) : (
-        <button onClick={() => setView('login')} className="p-2 hover:text-accent"><User size={24} /></button>
+        <button onClick={() => setView('login')} className="p-2 hover:text-accent"><User size={20} className="md:w-6 md:h-6" /></button>
       )}
       <button 
         onClick={onToggleMenu}
-        className="p-2 hover:text-accent transition-colors"
+        className="p-2 hover:text-accent transition-colors md:hidden"
       >
-        {isMenuOpen ? <X size={32} /> : <Menu size={32} />}
+        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
     </div>
   </motion.header>
@@ -786,7 +1223,10 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
   const menuItems: { label: string; view: View }[] = [
     { label: 'Galeria', view: 'gallery' },
     { label: 'Workshops', view: 'courses' },
-    { label: 'Ao Vivo', view: 'live' }
+    { label: 'Ao Vivo', view: 'live' },
+    { label: 'Artistas', view: 'artists' },
+    { label: 'SonorⒶ', view: 'sonora' },
+    { label: 'Podcast', view: 'podcast' }
   ];
 
   return (
@@ -797,21 +1237,21 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed inset-0 z-[100] bg-bg flex flex-col justify-center items-center p-12"
+          className="fixed inset-0 z-[100] bg-bg flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto"
         >
           <button 
             onClick={onClose}
-            className="absolute top-8 right-8 p-2 hover:text-accent transition-colors"
+            className="absolute top-6 right-6 sm:top-8 sm:right-8 p-2 hover:text-accent transition-colors z-10"
           >
             <X size={40} />
           </button>
 
-          <nav className="flex flex-col gap-8 text-center">
+          <nav className="flex flex-col gap-6 sm:gap-8 text-center my-auto py-20">
             {menuItems.map((item) => (
               <motion.button
                 key={item.view}
                 onClick={() => { setView(item.view); onClose(); }}
-                className={`font-display text-5xl md:text-7xl font-bold uppercase tracking-tighter hover:text-accent transition-colors ${currentView === item.view ? 'text-accent' : ''}`}
+                className={`font-display text-4xl sm:text-5xl md:text-6xl font-bold uppercase tracking-tighter hover:text-accent transition-colors ${currentView === item.view ? 'text-accent' : ''}`}
                 whileHover={{ x: 20 }}
               >
                 {item.label}
@@ -1047,13 +1487,42 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
 };
 
 const LogosFooter = () => (
-  <footer className="w-full px-[2%] py-[40px] bg-[#CCFF00] flex justify-center transition-all duration-500 ease-in-out group overflow-hidden">
-    <img 
-      src="https://lh3.googleusercontent.com/d/1fs54ghIfUMm9DmJ0Yp-FqC0Dug-JOaDg" 
-      alt="Logos Institucionais" 
-      className="w-full max-w-[1920px] h-auto block group-hover:scale-105 transition-all duration-500 ease-in-out" 
-      referrerPolicy="no-referrer"
-    />
+  <footer className="relative w-full px-[2%] py-[40px] bg-[#CCFF00] hover:bg-black flex justify-center overflow-hidden group cursor-crosshair transition-colors duration-500">
+    {/* CRT Scanline Overlay */}
+    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 z-20 transition-opacity duration-500 bg-[linear-gradient(rgba(204,255,0,0)_50%,rgba(204,255,0,0.1)_50%)] bg-[length:100%_4px]" />
+    
+    {/* Top Neon Border Glow */}
+    <div className="absolute top-0 left-0 w-full h-[1px] bg-[#CCFF00] shadow-[0_0_15px_#CCFF00] z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+    <div className="relative w-full max-w-[1920px] transition-transform duration-700 group-hover:scale-[1.01]">
+      {/* Main Image */}
+      <img 
+        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
+        alt="Logos Institucionais" 
+        className="w-full h-auto block relative z-10 transition-all duration-500 group-hover:invert group-hover:drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]" 
+        referrerPolicy="no-referrer"
+      />
+      
+      {/* Chromatic Aberration - Cyan */}
+      <img 
+        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
+        alt="" 
+        className="absolute top-0 left-0 w-full h-auto block z-0 opacity-0 group-hover:opacity-70 transition-all duration-200 -translate-x-[2px] translate-y-[1px] group-hover:invert mix-blend-screen" 
+        style={{ filter: 'drop-shadow(3px 0 0 #00FFFF)' }}
+        referrerPolicy="no-referrer"
+        aria-hidden="true"
+      />
+      
+      {/* Chromatic Aberration - Magenta */}
+      <img 
+        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
+        alt="" 
+        className="absolute top-0 left-0 w-full h-auto block z-0 opacity-0 group-hover:opacity-70 transition-all duration-300 translate-x-[2px] -translate-y-[1px] group-hover:invert mix-blend-screen" 
+        style={{ filter: 'drop-shadow(-3px 0 0 #FF00FF)' }}
+        referrerPolicy="no-referrer"
+        aria-hidden="true"
+      />
+    </div>
   </footer>
 );
 
@@ -1401,7 +1870,7 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <InteractiveTitle 
+            <ScramblePageTitle 
               text="VISTO LAB"
               className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-6"
             />
@@ -1437,7 +1906,7 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <h2 className="font-display text-6xl font-bold uppercase tracking-tighter mb-4">Transmissões ao Vivo</h2>
+            <ScramblePageTitle text="Transmissões ao Vivo" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
             <p className="font-sans opacity-60 max-w-2xl">Acompanhe as experimentações e performances em tempo real.</p>
           </section>
           
@@ -1446,6 +1915,60 @@ function AppContent() {
               <div className="w-4 h-4 bg-accent rounded-full animate-pulse mx-auto mb-4" />
               <p className="font-mono text-xs uppercase tracking-widest opacity-40">Nenhuma transmissão ativa no momento</p>
             </div>
+          </div>
+        </main>
+      )}
+
+      {view === 'artists' && (
+        <main className="pt-32 pb-24 px-6 md:px-12">
+          <button 
+            onClick={() => handleNavigate('gallery')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+          >
+            <ArrowLeft size={14} /> Voltar para Galeria
+          </button>
+          <section className="mb-16">
+            <ScramblePageTitle text="Artistas" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans opacity-60 max-w-2xl">Conheça os artistas residentes e colaboradores do V.I.S.T.O.</p>
+          </section>
+          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
+          </div>
+        </main>
+      )}
+
+      {view === 'sonora' && (
+        <main className="pt-32 pb-24 px-6 md:px-12">
+          <button 
+            onClick={() => handleNavigate('gallery')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+          >
+            <ArrowLeft size={14} /> Voltar para Galeria
+          </button>
+          <section className="mb-16">
+            <ScramblePageTitle text="SonorⒶ" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans opacity-60 max-w-2xl">Experimentações sonoras e paisagens auditivas.</p>
+          </section>
+          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
+          </div>
+        </main>
+      )}
+
+      {view === 'podcast' && (
+        <main className="pt-32 pb-24 px-6 md:px-12">
+          <button 
+            onClick={() => handleNavigate('gallery')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+          >
+            <ArrowLeft size={14} /> Voltar para Galeria
+          </button>
+          <section className="mb-16">
+            <ScramblePageTitle text="Podcast" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans opacity-60 max-w-2xl">Conversas, entrevistas e reflexões sobre arte e tecnologia.</p>
+          </section>
+          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
           </div>
         </main>
       )}
