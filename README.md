@@ -1,5 +1,5 @@
 <div align="center">
-  <img width="1200" alt="VISTO_LAB Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjUwODFnOGpxZWQwbWg1eGxpYTljOWFiMzRnMXpwb2Z1Nno1eDU0cSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/WeUKcWSSbPO1uonh0g/giphy.gif" alt="VISTO_LAB Movimento Somático" width="1200" />
 </div>
 
 <br />
