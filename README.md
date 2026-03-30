@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjUwODFnOGpxZWQwbWg1eGxpYTljOWFiMzRnMXpwb2Z1Nno1eDU0cSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/WeUKcWSSbPO1uonh0g/giphy.gif" alt="VISTO_LAB Movimento Somático" width="1200" />
+  <img src="https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjUwODFnOGpxZWQwbWg1eGxpYTljOWFiMzRnMXpwb2Z1Nno1eDU0cSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/WeUKcWSSbPO1uonh0g/giphy.gif" alt="VISTO_LAB Movimento Somático" width="100% " style="max-width: 800px;" />
 </div>
 
 <br />
