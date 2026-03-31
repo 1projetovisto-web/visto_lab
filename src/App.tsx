@@ -95,7 +95,7 @@ const Magnetic = ({ children, strength = 0.5 }: { children: ReactNode; strength?
   );
 };
 
-const ConstellationBackground = () => {
+const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: boolean }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Audio state refs
@@ -135,7 +135,7 @@ const ConstellationBackground = () => {
     const convolver = ctx.createConvolver();
     const reverbGain = ctx.createGain();
 
-    masterGain.gain.value = 0.4; // Volume geral
+    masterGain.gain.value = isSoundEnabled ? 0.4 : 0; // Volume geral
 
     // --- CONVOLUTION REVERB (Caverna/Catedral) ---
     // Gerando uma Resposta de Impulso (IR) sintética de 3 segundos
@@ -155,7 +155,7 @@ const ConstellationBackground = () => {
     reverbGain.gain.value = 0.8; // Volume do Reverb (Wet)
     
     convolver.connect(reverbGain);
-    reverbGain.connect(compressor);
+    reverbGain.connect(masterGain);
     convolverNodeRef.current = convolver;
 
     // Compressor para proteger contra picos
@@ -680,11 +680,101 @@ const ConstellationBackground = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!masterGainRef.current || !audioCtxRef.current) return;
+    const gain = isSoundEnabled ? 0.4 : 0;
+    masterGainRef.current.gain.setTargetAtTime(
+      gain,
+      audioCtxRef.current.currentTime,
+      0.1
+    );
+  }, [isSoundEnabled]);
+
   return (
     <canvas 
       ref={canvasRef} 
       className="absolute inset-0 w-full h-full opacity-100 pointer-events-none rounded-xl z-0"
     />
+  );
+};
+
+const SCRAMBLE_CHARS = '!<>-_\\\\/[]{}—=+*^?#01';
+
+const ScrambleChar: React.FC<{ 
+  char: string; 
+  delay: number; 
+  isHighlighted: boolean; 
+}> = ({ char, delay, isHighlighted }) => {
+  const [displayChar, setDisplayChar] = useState(char === ' ' ? ' ' : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]);
+
+  useEffect(() => {
+    if (char === ' ') return;
+
+    let iteration = 0;
+    const maxIterations = delay * 20; // 50ms interval = 20 iterations per second
+
+    const scrambleInterval = setInterval(() => {
+      setDisplayChar(SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]);
+      iteration++;
+      
+      if (iteration >= maxIterations) {
+        clearInterval(scrambleInterval);
+        setDisplayChar(char);
+      }
+    }, 50);
+
+    return () => clearInterval(scrambleInterval);
+  }, [char, delay]);
+
+  return (
+    <motion.span
+      className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
+      initial={{ opacity: 0, filter: 'blur(10px)' }}
+      animate={{ opacity: 1, filter: 'blur(0px)' }}
+      transition={{ duration: 0.5 }}
+      whileHover={{ 
+        scale: 1.8,
+        z: 250,
+        color: '#CCFF00',
+        textShadow: '0 20px 40px rgba(204, 255, 0, 0.4), 0 -10px 20px rgba(255, 255, 255, 0.1)',
+        transition: { 
+          type: 'spring', 
+          stiffness: 500, 
+          damping: 15 
+        }
+      }}
+      style={{ transformStyle: 'preserve-3d' }}
+    >
+      {/* Depth Layer (Ghost) */}
+      <span 
+        className="absolute inset-0 opacity-0 group-hover:opacity-40 blur-[4px] pointer-events-none transition-opacity duration-300"
+        style={{ transform: 'translateZ(-30px)' }}
+      >
+        {displayChar}
+      </span>
+      {/* Secondary Depth Layer */}
+      <span 
+        className="absolute inset-0 opacity-0 group-hover:opacity-20 blur-[8px] pointer-events-none transition-opacity duration-500"
+        style={{ transform: 'translateZ(-60px)' }}
+      >
+        {displayChar}
+      </span>
+      {/* Tertiary Depth Layer */}
+      <span 
+        className="absolute inset-0 opacity-0 group-hover:opacity-10 blur-[12px] pointer-events-none transition-opacity duration-700"
+        style={{ transform: 'translateZ(-90px)' }}
+      >
+        {displayChar}
+      </span>
+      {/* Quaternary Depth Layer */}
+      <span 
+        className="absolute inset-0 opacity-0 group-hover:opacity-5 blur-[16px] pointer-events-none transition-opacity duration-1000"
+        style={{ transform: 'translateZ(-120px)' }}
+      >
+        {displayChar}
+      </span>
+      {displayChar}
+    </motion.span>
   );
 };
 
@@ -712,62 +802,17 @@ const InteractiveTitle = ({
               const isHighlighted = highlights.some(h => word.toLowerCase().includes(h.toLowerCase()));
               return (
                 <span key={wordIdx} className="inline-block mr-[0.3em] whitespace-nowrap" style={{ transformStyle: 'preserve-3d' }}>
-                  {word.split('').map((char, charIdx) => (
-                    <motion.span
-                      key={charIdx}
-                      initial={{ y: 40, opacity: 0, rotateZ: 5, scale: 0.9, filter: 'blur(10px)' }}
-                      whileInView={{ y: 0, opacity: 1, rotateZ: 0, scale: 1, filter: 'blur(0px)' }}
-                      viewport={{ once: true, margin: "0px" }}
-                      transition={{ 
-                        delay: (lineIdx * 0.15) + (wordIdx * 0.05) + (charIdx * 0.02),
-                        duration: 1.2,
-                        ease: [0.16, 1, 0.3, 1] // Custom smooth easing (Expo/Circ out)
-                      }}
-                      className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
-                      whileHover={{ 
-                        scale: 1.8,
-                        z: 250,
-                        color: '#CCFF00',
-                        textShadow: '0 20px 40px rgba(204, 255, 0, 0.4), 0 -10px 20px rgba(255, 255, 255, 0.1)',
-                        transition: { 
-                          type: 'spring', 
-                          stiffness: 500, 
-                          damping: 15 
-                        }
-                      }}
-                      style={{ transformStyle: 'preserve-3d' }}
-                    >
-                      {/* Depth Layer (Ghost) */}
-                      <span 
-                        className="absolute inset-0 opacity-0 group-hover:opacity-40 blur-[4px] pointer-events-none transition-opacity duration-300"
-                        style={{ transform: 'translateZ(-30px)' }}
-                      >
-                        {char}
-                      </span>
-                      {/* Secondary Depth Layer */}
-                      <span 
-                        className="absolute inset-0 opacity-0 group-hover:opacity-20 blur-[8px] pointer-events-none transition-opacity duration-500"
-                        style={{ transform: 'translateZ(-60px)' }}
-                      >
-                        {char}
-                      </span>
-                      {/* Tertiary Depth Layer */}
-                      <span 
-                        className="absolute inset-0 opacity-0 group-hover:opacity-10 blur-[12px] pointer-events-none transition-opacity duration-700"
-                        style={{ transform: 'translateZ(-90px)' }}
-                      >
-                        {char}
-                      </span>
-                      {/* Quaternary Depth Layer */}
-                      <span 
-                        className="absolute inset-0 opacity-0 group-hover:opacity-5 blur-[16px] pointer-events-none transition-opacity duration-1000"
-                        style={{ transform: 'translateZ(-120px)' }}
-                      >
-                        {char}
-                      </span>
-                      {char}
-                    </motion.span>
-                  ))}
+                  {word.split('').map((char, charIdx) => {
+                    const delay = (lineIdx * 0.6) + (wordIdx * 0.15) + (charIdx * 0.08) + 0.5;
+                    return (
+                      <ScrambleChar 
+                        key={charIdx} 
+                        char={char} 
+                        delay={delay} 
+                        isHighlighted={isHighlighted} 
+                      />
+                    );
+                  })}
                 </span>
               );
             })}
@@ -826,17 +871,21 @@ const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
     <h1 
       onClick={onClick}
       onMouseEnter={handleMouseOver}
-      className="font-mono text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-2 py-1 md:px-3 md:py-2 rounded-2xl transition-all duration-300 flex items-center gap-1 md:gap-2 group shrink-0"
+      className="font-mono text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-2 py-1 md:px-3 md:py-2 rounded-2xl transition-all duration-300 flex items-center gap-1 md:gap-2 group shrink-0"
     >
       <span>{text1}</span> <span className="text-accent group-hover:text-white transition-colors duration-300">{text2}</span>
     </h1>
   );
 };
 
-const ScrambleNavItem = ({ text, onClick, isActive }: { text: string, onClick: () => void, isActive: boolean }) => {
+const ScrambleNavItem = ({ text, onClick, isActive, as: Component = 'button', 'aria-label': ariaLabel, 'aria-pressed': ariaPressed, className, layoutId = 'nav-indicator' }: { text: string, onClick: () => void, isActive: boolean, as?: any, 'aria-label'?: string, 'aria-pressed'?: boolean, className?: string, layoutId?: string }) => {
   const [displayText, setDisplayText] = useState(text);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  useEffect(() => {
+    setDisplayText(text);
+  }, [text]);
 
   const handleMouseOver = () => {
     let iteration = 0;
@@ -863,13 +912,19 @@ const ScrambleNavItem = ({ text, onClick, isActive }: { text: string, onClick: (
   };
 
   return (
-    <button 
+    <Component 
       onClick={onClick}
       onMouseEnter={handleMouseOver}
-      className={`font-mono text-[8px] md:text-[9px] lg:text-[10px] xl:text-xs uppercase tracking-[0.05em] md:tracking-[0.1em] xl:tracking-[0.2em] px-1 md:px-2 xl:px-4 py-1 md:py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap ${isActive ? 'text-accent' : 'text-white'}`}
+      style={{ fontFamily: "'Courier New', Courier, monospace" }}
+      className={`font-mono text-[10px] sm:text-xs md:text-sm lg:text-base uppercase tracking-wider md:tracking-widest px-2 md:px-3 xl:px-4 py-1.5 md:py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap cursor-pointer ${isActive ? 'text-accent' : 'text-white'} ${className || ''}`}
+      role={Component !== 'button' ? 'button' : undefined}
+      tabIndex={Component !== 'button' ? 0 : undefined}
+      onKeyDown={Component !== 'button' ? (e: any) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
     >
       {displayText}
-    </button>
+    </Component>
   );
 };
 
@@ -929,31 +984,33 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
 }) => (
   <motion.header 
     style={{ y, backgroundColor: bg, backdropFilter: blur }}
-    className="fixed top-0 left-0 w-full z-50 px-4 sm:px-6 py-4 flex justify-between items-center transition-colors duration-300 border-b border-white/5 overflow-x-auto no-scrollbar"
+    className="fixed top-0 left-0 w-full z-50 px-4 sm:px-6 py-4 flex justify-between items-center transition-colors duration-300 border-b border-white/5 overflow-hidden"
   >
-    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 xl:gap-8">
-      <ScrambleTitle onClick={() => setView('gallery')} />
-      <nav className="hidden md:flex items-center gap-1 md:gap-2 xl:gap-4">
-        <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} />
-        <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} />
-        <ScrambleNavItem text="Ao Vivo" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} />
-        <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} />
-        <ScrambleNavItem text="SonorⒶ" onClick={() => currentView === 'sonora' ? setView('gallery') : setView('sonora')} isActive={currentView === 'sonora'} />
-        <ScrambleNavItem text="Podcast" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} />
+    <div className="pointer-events-auto flex items-center gap-4 xl:gap-8 flex-1 overflow-hidden">
+      <div className="shrink-0">
+        <ScrambleTitle onClick={() => setView('gallery')} />
+      </div>
+      <nav className="hidden sm:flex items-center gap-1 md:gap-2 xl:gap-4 overflow-hidden">
+        <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold" />
+        <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold" />
+        <ScrambleNavItem text="Ao Vivo" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold" />
+        <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} className="font-bold" />
+        <ScrambleNavItem as="h2" text="SONORA_VISTA PODCAST" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} aria-label="Sonora Vista Podcast" className="font-bold" />
       </nav>
     </div>
-    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0">
+    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0 ml-auto pl-2 sm:pl-4">
       {user ? (
         <div className="flex items-center gap-2 md:gap-4">
-          <span className="font-mono text-[9px] md:text-[10px] uppercase opacity-50 hidden sm:inline whitespace-nowrap">Olá, {user.displayName || 'Usuário'}</span>
-          <button onClick={onLogout} className="p-2 hover:text-accent"><LogOut size={18} className="md:w-5 md:h-5" /></button>
+          <span className="font-mono text-[9px] md:text-[10px] uppercase opacity-50 hidden lg:inline whitespace-nowrap">Olá, {user.displayName || 'Usuário'}</span>
+          <button onClick={onLogout} className="p-2 hover:text-accent" aria-label="Logout"><LogOut size={18} className="md:w-5 md:h-5" /></button>
         </div>
       ) : (
-        <button onClick={() => setView('login')} className="p-2 hover:text-accent"><User size={20} className="md:w-6 md:h-6" /></button>
+        <button onClick={() => setView('login')} className="p-2 hover:text-accent" aria-label="Login"><User size={20} className="md:w-6 md:h-6" /></button>
       )}
       <button 
         onClick={onToggleMenu}
-        className="p-2 hover:text-accent transition-colors md:hidden"
+        className="p-2 hover:text-accent transition-colors sm:hidden shrink-0"
+        aria-label="Menu"
       >
         {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
@@ -1225,8 +1282,7 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
     { label: 'Workshops', view: 'courses' },
     { label: 'Ao Vivo', view: 'live' },
     { label: 'Artistas', view: 'artists' },
-    { label: 'SonorⒶ', view: 'sonora' },
-    { label: 'Podcast', view: 'podcast' }
+    { label: 'SONORA_VISTA PODCAST', view: 'podcast' }
   ];
 
   return (
@@ -1237,7 +1293,7 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed inset-0 z-[100] bg-bg flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto"
+          className="fixed inset-0 z-[100] bg-bg flex flex-col p-6 sm:p-12 overflow-y-auto"
         >
           <button 
             onClick={onClose}
@@ -1246,20 +1302,22 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
             <X size={40} />
           </button>
 
-          <nav className="flex flex-col gap-6 sm:gap-8 text-center my-auto py-20">
-            {menuItems.map((item) => (
-              <motion.button
-                key={item.view}
-                onClick={() => { setView(item.view); onClose(); }}
-                className={`font-display text-4xl sm:text-5xl md:text-6xl font-bold uppercase tracking-tighter hover:text-accent transition-colors ${currentView === item.view ? 'text-accent' : ''}`}
-                whileHover={{ x: 20 }}
-              >
-                {item.label}
-              </motion.button>
-            ))}
-          </nav>
+          <div className="flex-1 flex flex-col justify-center items-center py-12">
+            <nav className="flex flex-col gap-4 sm:gap-6 text-center w-full">
+              {menuItems.map((item) => (
+                <motion.button
+                  key={item.view}
+                  onClick={() => { setView(item.view); onClose(); }}
+                  className={`font-display text-[clamp(1.5rem,6vw,3rem)] font-bold uppercase tracking-tighter hover:text-accent transition-colors ${currentView === item.view ? 'text-accent' : ''}`}
+                  whileHover={{ x: 20 }}
+                >
+                  {item.label}
+                </motion.button>
+              ))}
+            </nav>
+          </div>
           
-          <div className="absolute bottom-12 left-12 right-12 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="mt-auto pt-8 flex flex-col md:flex-row justify-between items-center gap-8 w-full">
             <div className="flex gap-8">
               <Instagram className="hover:text-accent cursor-pointer" size={24} />
               <Twitter className="hover:text-accent cursor-pointer" size={24} />
@@ -1562,6 +1620,7 @@ function AppContent() {
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [studentSubmissions, setStudentSubmissions] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   const handleNavigate = (newView: View) => {
     setView(newView);
@@ -1570,6 +1629,19 @@ function AppContent() {
     setIsSearchActive(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    const titles: Record<View, string> = {
+      gallery: 'GALERIA',
+      courses: 'WORKSHOP',
+      live: 'AO VIVO',
+      artists: 'ARTISTAS',
+      sonora: 'SONORA',
+      podcast: 'Sonora_Vista Podcast',
+      login: 'LOGIN'
+    };
+    document.title = `${titles[view]} | VISTO_LAB`;
+  }, [view]);
 
   // Fetch Submissions
   useEffect(() => {
@@ -1749,8 +1821,8 @@ function AppContent() {
         <main className="pt-32 pb-24 px-6 md:px-12">
           {/* Hero Section (Title + Search) */}
           <div className="relative mb-12 w-full bg-black rounded-xl border border-white/5 overflow-hidden">
-            <ConstellationBackground />
-            
+            <ConstellationBackground isSoundEnabled={isSoundEnabled} />
+
             <div className="relative z-10 w-full px-4 py-12 md:py-20 flex flex-col items-center">
               {/* Intro Section */}
               <motion.section 
@@ -1759,12 +1831,22 @@ function AppContent() {
               >
                 <InteractiveTitle 
                   lines={[
-                    { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[1.8rem] sm:text-[3rem] md:text-[4rem] lg:text-[5rem] font-bold leading-tight tracking-tight" },
-                    { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[1.6rem] sm:text-[2.8rem] md:text-[3.5rem] lg:text-[4.5rem] font-bold leading-tight tracking-tight mb-2" },
-                    { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[1.2rem] sm:text-[1.8rem] md:text-[2rem] lg:text-[2.5rem] font-medium leading-tight tracking-tight" }
+                    { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[clamp(2rem,7vw,5rem)] font-bold leading-none tracking-tight" },
+                    { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[clamp(1.8rem,6.5vw,4.5rem)] font-bold leading-none tracking-tight mb-2 md:mb-4" },
+                    { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[clamp(1.2rem,3vw,2.5rem)] font-medium leading-tight tracking-tight" }
                   ]}
                   highlights={['LUGARZINHO']}
                 />
+                
+                {/* Sound Toggle Button */}
+                <div className="mt-8 md:mt-12 flex justify-center w-full pointer-events-auto z-50 relative">
+                  <button 
+                    onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                    className={`font-mono text-sm md:text-base xl:text-lg uppercase tracking-widest px-6 py-3 rounded-xl transition-all duration-300 border ${isSoundEnabled ? 'border-accent text-accent bg-accent/10 hover:bg-accent hover:text-black' : 'border-white/30 text-white/70 hover:bg-white/10 hover:text-white'} backdrop-blur-sm`}
+                  >
+                    {isSoundEnabled ? "[ SOM ON ]" : "[ SOM OFF ]"}
+                  </button>
+                </div>
               </motion.section>
 
               {/* Search and Advanced Filters */}
