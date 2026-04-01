@@ -1614,10 +1614,12 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
 
       {/* Right Side: 60% */}
       <div className="w-full md:w-[60%] flex flex-col">
-        <ScramblePageTitle 
-          text={artist.name} 
-          className="font-archivo text-4xl md:text-6xl lg:text-[5rem] leading-none uppercase text-white mb-6 text-center md:text-left drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
-        />
+        <div className="h-[120px] md:h-[180px] lg:h-[240px] mb-4 md:mb-6 flex items-start justify-center md:justify-start shrink-0">
+          <ScramblePageTitle 
+            text={artist.name} 
+            className="font-archivo text-4xl md:text-6xl lg:text-[5rem] leading-none uppercase text-white text-center md:text-left drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
+          />
+        </div>
         
         <div className="font-space text-sm md:text-base text-gray-300 leading-relaxed md:max-h-[60vh] md:overflow-y-auto md:pr-4 custom-scrollbar-magenta">
           {artist.bio.split('\n').map((paragraph, i) => {
@@ -1625,7 +1627,7 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
             return (
               <p 
                 key={i} 
-                className="mb-4 last:mb-0 text-justify"
+                className="mb-4 last:mb-0 text-left"
                 dangerouslySetInnerHTML={{ __html: paragraph }}
               />
             );
