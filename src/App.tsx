@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
+
+gsap.registerPlugin(ScrollTrigger);
+
 import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft } from 'lucide-react';
 import { ARTWORKS, Artwork, COURSES, Course, Lesson } from './data';
 import { 
@@ -1553,36 +1559,106 @@ const LogosFooter = () => (
     <div className="absolute top-0 left-0 w-full h-[1px] bg-[#CCFF00] shadow-[0_0_15px_#CCFF00] z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
     <div className="relative w-full max-w-[1920px] transition-transform duration-700 group-hover:scale-[1.01]">
-      {/* Main Image */}
+      {/* Normal Image (Colorida) */}
       <img 
-        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
+        src="https://drive.google.com/thumbnail?id=1ZXJ1MQ-KW89XY23H5Qywt-yRlaxTDo4x&sz=w2000" 
         alt="Logos Institucionais" 
-        className="w-full h-auto block relative z-10 transition-all duration-500 group-hover:invert group-hover:drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]" 
+        className="w-full h-auto object-contain block relative z-10 transition-opacity duration-500 opacity-100 group-hover:opacity-0" 
         referrerPolicy="no-referrer"
       />
       
-      {/* Chromatic Aberration - Cyan */}
+      {/* Hover Image (Negativa) */}
       <img 
-        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
-        alt="" 
-        className="absolute top-0 left-0 w-full h-auto block z-0 opacity-0 group-hover:opacity-70 transition-all duration-200 -translate-x-[2px] translate-y-[1px] group-hover:invert mix-blend-screen" 
-        style={{ filter: 'drop-shadow(3px 0 0 #00FFFF)' }}
+        src="https://drive.google.com/thumbnail?id=1wiuKVl7TTphuQhoCUX0S6cxFdZ5HZw-I&sz=w2000" 
+        alt="Logos Institucionais Negativo" 
+        className="absolute inset-0 w-full h-full object-contain z-10 transition-all duration-500 opacity-0 group-hover:opacity-100 group-hover:drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]" 
         referrerPolicy="no-referrer"
-        aria-hidden="true"
-      />
-      
-      {/* Chromatic Aberration - Magenta */}
-      <img 
-        src="https://lh3.googleusercontent.com/d/1L1HQOljIzbSN9Pi-sdFtY-42_zoo4IHA" 
-        alt="" 
-        className="absolute top-0 left-0 w-full h-auto block z-0 opacity-0 group-hover:opacity-70 transition-all duration-300 translate-x-[2px] -translate-y-[1px] group-hover:invert mix-blend-screen" 
-        style={{ filter: 'drop-shadow(-3px 0 0 #FF00FF)' }}
-        referrerPolicy="no-referrer"
-        aria-hidden="true"
       />
     </div>
   </footer>
 );
+
+const ARTISTS_DATA = [
+  {
+    id: 'chico-machado',
+    name: 'Chico Machado',
+    photo: 'https://i.postimg.cc/ZnLQVcnX/1.webp',
+    bio: `Chico Machado (João Carlos Machado) é <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">artista, performer e professor</span> do Departamento de Arte Dramática do Instituto de Artes da <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Universidade Federal do Rio Grande do Sul</span> e do <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Programa de Pós-Graduação em Artes Visuais da UFRGS</span>. Bacharel em Pintura e em Desenho, Especialista em Teatro Contemporâneo, com Mestrado e Doutorado em Poéticas Visuais pela UFRGS. É fundador e coordenador do Grupo Insubordinado de Pesquisa (GRIPE). Residente em Porto Alegre, atua desde o final da década de 1980 nas áreas das artes visuais, da performance, do teatro e da arte sonora. Trabalhou com HQ (comics), bandas de música pop (como baixista e compositor) e desenvolve trabalhos em pintura, desenho, escultura, objetos cinéticos, objetos sonoros, cenografia, direção teatral e vídeo. Realizou dezenas de exposições coletivas e individuais e participou de diversos espetáculos cênicos em diversas funções. Recebeu diversas premiações regionais e nacionais na área de artes visuais e de teatro. Em 2025 foi um dos artistas selecionados com trabalho comissionado para a <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">14ª Bienal do Mercosul</span>.`
+  },
+  {
+    id: 'roberta-savian-rosa',
+    name: 'Roberta Savian Rosa',
+    photo: 'https://i.postimg.cc/90NdmRNL/2.webp',
+    bio: `<span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Bailatriz, pesquisadora, educadora e artista de código</span> em práticas de <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">creative coding</span>, atua na interseção entre <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">corpo, tecnologias digitais de código aberto e educação</span>. Doutora em Informática na Educação (UFRGS, 2024), mestra em Artes Cênicas (UFRGS, 2017), licenciada em Dança (UERGS, 2009) e especialista em Mídias Integradas na Educação (IFSC, 2021).
+Desde 2008, investiga práticas corpóreo-digitais em tempo real, com foco em pesquisa-criação, cognição incorporada e pedagogias críticas. Desenvolveu obras autorais como <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Migrações Temporárias: Fronteiras Reais e Imaginárias do Brasil</span> (2009–2012, <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Prêmio Funarte Klauss Vianna</span>) e <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">V.I.S.T.O: Ocupações Vídeo-Coreográficas</span> (2012–2015, <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Prêmio Funarte Klauss Vianna 2012</span>; <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">VISTO: REABRINDO O LUGARzinho no 4º Distrito Poa PNAB–SEDAC/RS 2024–2026</span>), além do projeto <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Is@.coreo: Dança e Mediação Tecnológica</span> (2014–2015, <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">FUMPROARTE</span>).
+É criadora do <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">CORE0GAM3</span>, framework de programação criativa em código aberto para formação de professores-artistas, baseado em <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">p5.js e ml5.js</span>. Em 2021, integrou a equipe vencedora do <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">2º CubeDesign Virtual/INPE</span> (categoria ArtSat), experiência que desdobrou sua participação na obra <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Templo Orbital</span>, concebida pelo artista Edson Pavoni e apresentada na <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">13ª Bienal do Mercosul (2022)</span>, na qual atuou na equipe de pesquisa artística e mediação educacional.
+Seus trabalhos integram circuitos nacionais e internacionais, com exibição no <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Festival Internacional de Videodança DVDANZA (Havana, Cuba)</span>.
+Pesquisadora colaboradora do <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">NEECD/UFRGS</span>, articula dança, tecnologias abertas e formação, compreendendo a cultura digital como campo crítico e poético. Membro do <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">Conselho Internacional de Dança da UNESCO (CID)</span>, mantém redes de colaboração na <span class="text-[#00FF00] font-bold drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">América Latina e Europa</span>.`
+  }
+];
+
+const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) => {
+  return (
+    <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full">
+      {/* Left Side: 40% */}
+      <div className="w-full md:w-[40%] flex justify-center items-center relative shrink-0">
+        {/* Glow Background */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#ff00ff]/10 blur-3xl" />
+        </div>
+        
+        {/* Image */}
+        <div className="relative w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#ff00ff] shadow-[0_0_30px_rgba(255,0,255,0.3)] z-10 aspect-square">
+          <img 
+            src={artist.photo} 
+            alt={artist.name} 
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      </div>
+
+      {/* Right Side: 60% */}
+      <div className="w-full md:w-[60%] flex flex-col">
+        <ScramblePageTitle 
+          text={artist.name} 
+          className="font-archivo text-4xl md:text-6xl lg:text-[5rem] leading-none uppercase text-white mb-6 text-center md:text-left drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
+        />
+        
+        <div className="font-space text-sm md:text-base text-gray-300 leading-relaxed md:max-h-[60vh] md:overflow-y-auto md:pr-4 custom-scrollbar-magenta">
+          {artist.bio.split('\n').map((paragraph, i) => {
+            if (!paragraph.trim()) return null;
+            return (
+              <p 
+                key={i} 
+                className="mb-4 last:mb-0 text-justify"
+                dangerouslySetInnerHTML={{ __html: paragraph }}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ArtistsView = () => {
+  return (
+    <div className="flex flex-col w-full mt-12 bg-[#000000]">
+      {ARTISTS_DATA.map((artist, index) => {
+        const isLast = index === ARTISTS_DATA.length - 1;
+        
+        return (
+          <React.Fragment key={artist.id}>
+            <div className={`w-full max-w-7xl mx-auto px-4 md:px-0 ${isLast ? '' : 'mb-32'}`}>
+              <ArtistCard artist={artist} />
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function App() {
   return (
@@ -2011,11 +2087,8 @@ function AppContent() {
           </button>
           <section className="mb-16">
             <ScramblePageTitle text="Artistas" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
-            <p className="font-sans opacity-60 max-w-2xl">Conheça os artistas residentes e colaboradores do V.I.S.T.O.</p>
           </section>
-          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
-            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
-          </div>
+          <ArtistsView />
         </main>
       )}
 
