@@ -1613,7 +1613,7 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
       </div>
 
       {/* Right Side: 60% */}
-      <div className="w-full md:w-[60%] flex flex-col">
+      <div className="w-full md:w-[60%] flex flex-col md:h-[400px]">
         <div className="h-[120px] md:h-[180px] lg:h-[240px] mb-4 md:mb-6 flex items-start justify-center md:justify-start shrink-0">
           <ScramblePageTitle 
             text={artist.name} 
@@ -1621,7 +1621,7 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
           />
         </div>
         
-        <div className="font-space text-sm md:text-base text-gray-300 leading-relaxed md:max-h-[60vh] md:overflow-y-auto md:pr-4 custom-scrollbar-magenta">
+        <div className="flex-1 overflow-y-auto pr-2 md:pr-4 custom-scrollbar-magenta font-space text-sm md:text-base text-gray-300 leading-relaxed h-[250px] md:h-auto">
           {artist.bio.split('\n').map((paragraph, i) => {
             if (!paragraph.trim()) return null;
             return (
