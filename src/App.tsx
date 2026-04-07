@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft } from 'lucide-react';
+import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard } from 'lucide-react';
 import { ARTWORKS, Artwork, COURSES, Course, Lesson } from './data';
 import { 
   auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, 
-  doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where,
+  doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs,
   handleFirestoreError, OperationType, FirebaseUser
 } from './firebase';
 
-type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast';
+type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -697,7 +697,6 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
     />
   );
 };
-
 const SCRAMBLE_CHARS = '!<>-_\\\\/[]{}—=+*^?#01';
 
 const ScrambleChar: React.FC<{ 
@@ -878,32 +877,49 @@ const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
   );
 };
 
-const ScrambleNavItem = ({ text, onClick, isActive, as: Component = 'button', 'aria-label': ariaLabel, 'aria-pressed': ariaPressed, className, layoutId = 'nav-indicator' }: { text: string, onClick: () => void, isActive: boolean, as?: any, 'aria-label'?: string, 'aria-pressed'?: boolean, className?: string, layoutId?: string }) => {
+const ScrambleNavItem = ({ text, subText, onClick, isActive, as: Component = 'button', 'aria-label': ariaLabel, 'aria-pressed': ariaPressed, className, layoutId = 'nav-indicator' }: { text: string, subText?: string, onClick: () => void, isActive: boolean, as?: any, 'aria-label'?: string, 'aria-pressed'?: boolean, className?: string, layoutId?: string }) => {
   const [displayText, setDisplayText] = useState(text);
+  const [displaySubText, setDisplaySubText] = useState(subText || '');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
   useEffect(() => {
     setDisplayText(text);
-  }, [text]);
+    setDisplaySubText(subText || '');
+  }, [text, subText]);
 
   const handleMouseOver = () => {
     let iteration = 0;
     if (intervalRef.current) clearInterval(intervalRef.current);
     
+    const maxLen = Math.max(text.length, (subText || '').length);
+
     intervalRef.current = setInterval(() => {
       setDisplayText(
         text
           .split("")
           .map((char, index) => {
-            if(char === ' ') return ' ';
+            if(char === ' ' || char === '"') return char;
             if(index < iteration) return text[index];
             return letters[Math.floor(Math.random() * 26)];
           })
           .join("")
       );
 
-      if(iteration >= text.length){
+      if (subText) {
+        setDisplaySubText(
+          subText
+            .split("")
+            .map((char, index) => {
+              if(char === ' ' || char === '"') return char;
+              if(index < iteration) return subText[index];
+              return letters[Math.floor(Math.random() * 26)];
+            })
+            .join("")
+        );
+      }
+
+      if(iteration >= maxLen){
         if (intervalRef.current) clearInterval(intervalRef.current);
       }
 
@@ -916,20 +932,22 @@ const ScrambleNavItem = ({ text, onClick, isActive, as: Component = 'button', 'a
       onClick={onClick}
       onMouseEnter={handleMouseOver}
       style={{ fontFamily: "'Courier New', Courier, monospace" }}
-      className={`font-mono text-[10px] sm:text-xs md:text-sm lg:text-base uppercase tracking-wider md:tracking-widest px-2 md:px-3 xl:px-4 py-1.5 md:py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap cursor-pointer ${isActive ? 'text-accent' : 'text-white'} ${className || ''}`}
+      className={`font-mono text-[10px] sm:text-xs md:text-sm lg:text-base uppercase tracking-wider md:tracking-widest px-1 md:px-2 xl:px-3 py-1.5 md:py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap cursor-pointer flex flex-col items-center justify-center leading-tight ${isActive ? 'text-accent' : 'text-white'} ${className || ''}`}
       role={Component !== 'button' ? 'button' : undefined}
       tabIndex={Component !== 'button' ? 0 : undefined}
       onKeyDown={Component !== 'button' ? (e: any) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
     >
-      {displayText}
+      <span>{displayText}</span>
+      {subText && <span className="text-[8px] sm:text-[9px] md:text-[10px] opacity-70 mt-0.5">{displaySubText}</span>}
     </Component>
   );
 };
 
-const ScramblePageTitle = ({ text, className }: { text: string, className?: string }) => {
+const ScramblePageTitle = ({ text, subText, className }: { text: string, subText?: string, className?: string }) => {
   const [displayText, setDisplayText] = useState(text);
+  const [displaySubText, setDisplaySubText] = useState(subText || '');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -937,19 +955,34 @@ const ScramblePageTitle = ({ text, className }: { text: string, className?: stri
     let iteration = 0;
     if (intervalRef.current) clearInterval(intervalRef.current);
     
+    const maxLen = Math.max(text.length, (subText || '').length);
+
     intervalRef.current = setInterval(() => {
       setDisplayText(
         text
           .split("")
           .map((char, index) => {
-            if(char === ' ' || char === '.' || char === 'Ⓐ') return char;
+            if(char === ' ' || char === '.' || char === 'Ⓐ' || char === '"') return char;
             if(index < iteration) return text[index];
             return letters[Math.floor(Math.random() * 26)];
           })
           .join("")
       );
 
-      if(iteration >= text.length){
+      if (subText) {
+        setDisplaySubText(
+          subText
+            .split("")
+            .map((char, index) => {
+              if(char === ' ' || char === '.' || char === 'Ⓐ' || char === '"') return char;
+              if(index < iteration) return subText[index];
+              return letters[Math.floor(Math.random() * 26)];
+            })
+            .join("")
+        );
+      }
+
+      if(iteration >= maxLen){
         if (intervalRef.current) clearInterval(intervalRef.current);
       }
 
@@ -959,19 +992,97 @@ const ScramblePageTitle = ({ text, className }: { text: string, className?: stri
 
   useEffect(() => {
     handleMouseOver();
-  }, [text]);
+  }, [text, subText]);
 
   return (
-    <h2 
-      onMouseEnter={handleMouseOver}
-      className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-4 py-2 -ml-4 rounded-2xl inline-block`}
-    >
-      {displayText}
-    </h2>
+    <div className="my-8 py-4">
+      <h2 
+        onMouseEnter={handleMouseOver}
+        className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-4 py-2 -ml-4 rounded-2xl inline-flex flex-col`}
+      >
+        <span>{displayText}</span>
+        {subText && <span className="text-2xl md:text-3xl lg:text-4xl opacity-80 mt-2 font-mono tracking-widest">{displaySubText}</span>}
+      </h2>
+    </div>
   );
 };
 
-const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout, y, bg, blur }: { 
+const UserProfileMenu = ({ user, isAdmin, currentView, setView, onLogout }: {
+  user: any;
+  isAdmin?: boolean;
+  currentView: View;
+  setView: (v: View) => void;
+  onLogout: () => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 hover:text-accent transition-colors flex items-center gap-2"
+        aria-label="Menu do Usuário"
+      >
+        {user.photoURL ? (
+          <img src={user.photoURL} alt="Avatar" className="w-6 h-6 rounded-full border border-white/20" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="relative">
+            <User size={20} className="md:w-6 md:h-6" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>
+          </div>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute right-0 top-full mt-2 w-48 bg-bg border border-white/10 shadow-xl z-50 py-2"
+          >
+            <div className="px-4 py-2 border-b border-white/10 mb-2">
+              <span className="font-mono text-[10px] uppercase opacity-50 block truncate">
+                Olá, {user.displayName || 'Usuário'}
+              </span>
+            </div>
+            
+            {isAdmin && (
+              <button
+                onClick={() => { setView('admin'); setIsOpen(false); }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors flex items-center gap-2 ${currentView === 'admin' ? 'text-accent' : ''}`}
+              >
+                <LayoutDashboard size={14} />
+                Painel do Professor
+              </button>
+            )}
+            
+            <button
+              onClick={() => { onLogout(); setIsOpen(false); }}
+              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors flex items-center gap-2 text-red-400 hover:text-red-300"
+            >
+              <LogOut size={14} />
+              Sair
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout, y, bg, blur, isAdmin }: { 
   onToggleMenu: () => void; 
   isMenuOpen: boolean; 
   currentView: View; 
@@ -981,29 +1092,27 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
   y?: any;
   bg?: any;
   blur?: any;
+  isAdmin?: boolean;
 }) => (
   <motion.header 
     style={{ y, backgroundColor: bg, backdropFilter: blur }}
-    className="fixed top-0 left-0 w-full z-50 px-4 sm:px-6 py-4 flex justify-between items-center transition-colors duration-300 border-b border-white/5 overflow-hidden"
+    className="fixed top-0 left-0 w-full z-50 px-4 sm:px-6 py-4 flex justify-between items-center transition-colors duration-300 border-b border-white/5"
   >
-    <div className="pointer-events-auto flex items-center gap-4 xl:gap-8 flex-1 overflow-hidden">
+    <div className="pointer-events-auto flex items-center gap-4 xl:gap-8 flex-1 min-w-0">
       <div className="shrink-0">
         <ScrambleTitle onClick={() => setView('gallery')} />
       </div>
-      <nav className="hidden sm:flex items-center gap-1 md:gap-2 xl:gap-4 overflow-hidden">
-        <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold" />
-        <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold" />
-        <ScrambleNavItem text="Ao Vivo" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold" />
-        <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} className="font-bold" />
-        <ScrambleNavItem as="h2" text="SONORA_VISTA PODCAST" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} aria-label="Sonora Vista Podcast" className="font-bold" />
+      <nav className="hidden sm:flex items-center gap-1 md:gap-2 lg:gap-3 xl:gap-4 flex-nowrap overflow-x-auto hide-scrollbar py-4 -my-4 px-4 -mx-4">
+        <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold text-xs md:text-sm lg:text-base" />
+        <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold text-xs md:text-sm lg:text-base" />
+        <ScrambleNavItem text="AO VIVO" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold text-xs md:text-sm lg:text-base" />
+        <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} className="font-bold text-xs md:text-sm lg:text-base" />
+        <ScrambleNavItem as="h2" text="SONORA_VISTA" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} aria-label="Sonora Vista Podcast" className="font-bold text-xs md:text-sm lg:text-base whitespace-nowrap" />
       </nav>
     </div>
     <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0 ml-auto pl-2 sm:pl-4">
       {user ? (
-        <div className="flex items-center gap-2 md:gap-4">
-          <span className="font-mono text-[9px] md:text-[10px] uppercase opacity-50 hidden lg:inline whitespace-nowrap">Olá, {user.displayName || 'Usuário'}</span>
-          <button onClick={onLogout} className="p-2 hover:text-accent" aria-label="Logout"><LogOut size={18} className="md:w-5 md:h-5" /></button>
-        </div>
+        <UserProfileMenu user={user} isAdmin={isAdmin} currentView={currentView} setView={setView} onLogout={onLogout} />
       ) : (
         <button onClick={() => setView('login')} className="p-2 hover:text-accent" aria-label="Login"><User size={20} className="md:w-6 md:h-6" /></button>
       )}
@@ -1017,8 +1126,6 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
     </div>
   </motion.header>
 );
-
-// ... MenuOverlay remains similar ...
 
 const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, onOpen }) => (
   <motion.div 
@@ -1088,18 +1195,284 @@ const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, 
   </motion.div>
 );
 
-const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user }: { 
+const EnrollmentModal = ({ course, user, onClose, onSuccess }: {
+  course: Course;
+  user: FirebaseUser;
+  onClose: () => void;
+  onSuccess: (courseId: string) => void;
+}) => {
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: user.displayName || '',
+    email: user.email || '',
+    whatsapp: '',
+    birthdate: '',
+    cityState: '',
+    gender: '',
+    race: '',
+    accessibility: '',
+    experience: '',
+    motivation: '',
+    agreedToTerms: false,
+    agreedToImageUse: false
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleNext = () => {
+    if (step === 1) {
+      if (!formData.name || !formData.email || !formData.whatsapp || !formData.birthdate) {
+        alert("Por favor, preencha todos os campos obrigatórios do Passo 1.");
+        return;
+      }
+    } else if (step === 2) {
+      if (!formData.cityState || !formData.gender || !formData.race) {
+        alert("Por favor, preencha todos os campos obrigatórios do Passo 2.");
+        return;
+      }
+    }
+    setStep(s => Math.min(3, s + 1));
+  };
+
+  const handlePrev = () => setStep(s => Math.max(1, s - 1));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (step < 3) {
+      handleNext();
+      return;
+    }
+
+    if (!formData.experience || !formData.motivation) {
+      alert("Por favor, preencha todos os campos obrigatórios do Passo 3.");
+      return;
+    }
+
+    if (!formData.agreedToTerms || !formData.agreedToImageUse) {
+      alert("Você precisa aceitar os termos para continuar.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const enrollmentId = `${user.uid}_${course.id}`;
+      await setDoc(doc(db, 'enrollments', enrollmentId), {
+        userId: user.uid,
+        courseId: course.id,
+        ...formData,
+        createdAt: new Date().toISOString()
+      });
+      
+      // Update user enrolled courses
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        await updateDoc(userRef, {
+          enrolledCourses: [...(userData.enrolledCourses || []), course.id]
+        });
+      }
+      
+      onSuccess(course.id);
+    } catch (error: any) {
+      console.error("Error submitting enrollment:", error);
+      alert("Erro ao enviar inscrição: " + (error.message || error));
+      handleFirestoreError(error, OperationType.WRITE, 'enrollments');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-bg/90 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto">
+      <div className="bg-bg border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 opacity-50 hover:opacity-100 transition-opacity"
+        >
+          <X size={24} />
+        </button>
+
+        <div className="p-8 md:p-12">
+          <div className="mb-8">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-50 mb-2">Inscrição</p>
+            <h2 className="font-display text-3xl font-bold uppercase tracking-tighter">{course.title}</h2>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="flex gap-2 mb-12">
+            {[1, 2, 3].map(i => (
+              <div key={i} className={`h-1 flex-1 ${step >= i ? 'bg-accent' : 'bg-white/10'}`} />
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+            {step === 1 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6">
+                <h3 className="font-mono text-sm uppercase tracking-widest text-accent mb-2">Passo 1: Dados Básicos</h3>
+                
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Nome Completo *</label>
+                  <input type="text" name="name" value={formData.name} onChange={handleChange} className="bg-white/5 border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">E-mail *</label>
+                  <input type="email" name="email" value={formData.email} readOnly className="bg-white/5 border border-white/10 p-4 font-sans opacity-50 cursor-not-allowed" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">WhatsApp / Telefone *</label>
+                  <input type="tel" name="whatsapp" value={formData.whatsapp} onChange={handleChange} placeholder="(00) 00000-0000" className="bg-white/5 border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Data de Nascimento *</label>
+                  <input type="date" name="birthdate" value={formData.birthdate} onChange={handleChange} className="bg-white/5 border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors [color-scheme:dark]" />
+                </div>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6">
+                <h3 className="font-mono text-sm uppercase tracking-widest text-accent mb-2">Passo 2: Perfil (PNAB)</h3>
+                
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Cidade e Estado *</label>
+                  <input type="text" name="cityState" value={formData.cityState} onChange={handleChange} placeholder="Ex: São Paulo - SP" className="bg-white/5 border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Como você se identifica? (Gênero) *</label>
+                  <select name="gender" value={formData.gender} onChange={handleChange} className="bg-bg border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors">
+                    <option value="">Selecione...</option>
+                    <option value="Mulher Cis">Mulher Cis</option>
+                    <option value="Homem Cis">Homem Cis</option>
+                    <option value="Mulher Trans">Mulher Trans</option>
+                    <option value="Homem Trans">Homem Trans</option>
+                    <option value="Não-binário">Não-binário</option>
+                    <option value="Prefiro não informar">Prefiro não informar</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Cor/Raça *</label>
+                  <select name="race" value={formData.race} onChange={handleChange} className="bg-bg border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors">
+                    <option value="">Selecione...</option>
+                    <option value="Branca">Branca</option>
+                    <option value="Preta">Preta</option>
+                    <option value="Parda">Parda</option>
+                    <option value="Amarela">Amarela</option>
+                    <option value="Indígena">Indígena</option>
+                    <option value="Prefiro não informar">Prefiro não informar</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Possui alguma deficiência ou necessidade de acessibilidade?</label>
+                  <textarea name="accessibility" value={formData.accessibility} onChange={handleChange} placeholder="Se sim, descreva aqui. Caso contrário, pode deixar em branco." rows={2} className="bg-white/5 border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors resize-none" />
+                </div>
+              </motion.div>
+            )}
+
+            {step === 3 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6">
+                <h3 className="font-mono text-sm uppercase tracking-widest text-accent mb-2">Passo 3: Expectativas</h3>
+                
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Nível de experiência com Arte/Tecnologia *</label>
+                  <select name="experience" value={formData.experience} onChange={handleChange} className="bg-bg border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors">
+                    <option value="">Selecione...</option>
+                    <option value="Iniciante">Iniciante</option>
+                    <option value="Intermediário">Intermediário</option>
+                    <option value="Avançado">Avançado</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-sans text-sm opacity-70">Por que você quer participar desta oficina? *</label>
+                  <textarea name="motivation" value={formData.motivation} onChange={handleChange} rows={3} className="bg-white/5 border border-white/10 p-4 font-sans focus:outline-none focus:border-accent transition-colors resize-none" />
+                </div>
+
+                <div className="flex flex-col gap-4 mt-4">
+                  <label className="flex items-start gap-4 cursor-pointer group">
+                    <div className="relative flex items-center justify-center mt-1">
+                      <input type="checkbox" name="agreedToTerms" checked={formData.agreedToTerms} onChange={handleChange} className="peer sr-only" />
+                      <div className="w-5 h-5 border border-white/30 peer-checked:bg-accent peer-checked:border-accent transition-colors flex items-center justify-center">
+                        <Check size={14} className="opacity-0 peer-checked:opacity-100 text-bg" />
+                      </div>
+                    </div>
+                    <span className="font-sans text-sm opacity-80 group-hover:opacity-100 transition-opacity">
+                      Estou ciente de que as vagas são limitadas, que a oficina tem duração máxima de 90 dias e me comprometo a participar ativamente.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-4 cursor-pointer group">
+                    <div className="relative flex items-center justify-center mt-1">
+                      <input type="checkbox" name="agreedToImageUse" checked={formData.agreedToImageUse} onChange={handleChange} className="peer sr-only" />
+                      <div className="w-5 h-5 border border-white/30 peer-checked:bg-accent peer-checked:border-accent transition-colors flex items-center justify-center">
+                        <Check size={14} className="opacity-0 peer-checked:opacity-100 text-bg" />
+                      </div>
+                    </div>
+                    <span className="font-sans text-sm opacity-80 group-hover:opacity-100 transition-opacity">
+                      Autorizo a exibição dos trabalhos artísticos gerados na oficina na Galeria Pública do Projeto Visto.
+                    </span>
+                  </label>
+                </div>
+              </motion.div>
+            )}
+
+            <div className="flex justify-between mt-8 pt-8 border-t border-white/10">
+              {step > 1 ? (
+                <button type="button" onClick={handlePrev} className="px-6 py-3 border border-white/20 font-mono text-xs uppercase tracking-widest hover:bg-white/5 transition-colors flex items-center gap-2">
+                  <ChevronLeft size={16} /> Voltar
+                </button>
+              ) : <div></div>}
+              
+              <button 
+                type="button" 
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="px-6 py-3 bg-accent text-bg font-mono text-xs uppercase tracking-widest font-bold hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Enviando...' : step < 3 ? (
+                  <>Próximo <ChevronRight size={16} /></>
+                ) : (
+                  <>Garantir Vaga <Check size={16} /></>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user, userData, onEnroll, onLogin }: { 
   course: Course; 
   onClose: () => void;
   completedLessons: string[];
   toggleLesson: (id: string) => void;
   user: FirebaseUser | null;
+  userData: AppUser | null;
+  onEnroll: (courseId: string) => void;
+  onLogin: () => void;
 }) => {
   const [activeLesson, setActiveLesson] = useState<Lesson>(course.lessons[0]);
-  const progress = (completedLessons.filter(id => course.lessons.some(l => l.id === id)).length / course.lessons.length) * 100;
+  const isEnrolled = userData?.enrolledCourses?.includes(course.id);
+  const progress = isEnrolled ? (completedLessons.filter(id => course.lessons.some(l => l.id === id)).length / course.lessons.length) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-bg flex flex-col md:flex-row overflow-hidden">
+    <div className="fixed inset-0 z-[70] bg-bg flex flex-col md:flex-row overflow-hidden pointer-events-auto">
       <div className="w-full md:w-3/4 flex flex-col h-full">
         <div className="p-6 border-b border-white/10 flex justify-between items-center">
           <h2 className="font-display text-xl font-bold uppercase">{course.title} / {activeLesson.title}</h2>
@@ -1109,33 +1482,49 @@ const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user }:
         </div>
         <div className="flex-1 p-8 md:p-12 overflow-y-auto custom-scrollbar">
           <div className="max-w-4xl mx-auto">
-            <div className="aspect-video bg-white/5 border border-white/10 mb-12 flex items-center justify-center">
-              <p className="font-mono opacity-30 uppercase tracking-widest">Video Player Placeholder</p>
-            </div>
-            <h3 className="font-display text-3xl font-bold mb-6 uppercase tracking-tighter">{activeLesson.title}</h3>
-            <p className="font-sans text-lg leading-relaxed opacity-80 mb-12">{activeLesson.content}</p>
-            
-            <div className="flex flex-col gap-8">
-              <button 
-                onClick={() => toggleLesson(activeLesson.id)}
-                className={`px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all flex items-center gap-3 self-start ${
-                  completedLessons.includes(activeLesson.id) 
-                    ? 'bg-accent text-bg' 
-                    : 'border border-white/20 hover:border-accent hover:text-accent'
-                }`}
-              >
-                {completedLessons.includes(activeLesson.id) ? <CheckCircle size={18} /> : null}
-                {completedLessons.includes(activeLesson.id) ? 'Aula Concluída' : 'Marcar como Concluída'}
-              </button>
+            {!isEnrolled ? (
+              <div className="p-12 bg-white/5 border border-white/10 text-center flex flex-col items-center justify-center min-h-[400px]">
+                <Lock size={48} className="mb-6 opacity-50" />
+                <h3 className="font-display text-3xl font-bold mb-4 uppercase tracking-tighter">Conteúdo Exclusivo</h3>
+                <p className="font-sans opacity-60 mb-8 max-w-md text-lg">Matricule-se neste workshop para ter acesso a todas as aulas, materiais complementares e certificado de conclusão.</p>
+                <button
+                  onClick={() => user ? onEnroll(course.id) : onLogin()}
+                  className="px-8 py-4 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold hover:opacity-90 transition-opacity"
+                  >
+                  {user ? 'Matricular-se Gratuitamente' : 'Fazer Login com Google para Inscrição'}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="aspect-video bg-white/5 border border-white/10 mb-12 flex items-center justify-center">
+                  <p className="font-mono opacity-30 uppercase tracking-widest">Video Player Placeholder</p>
+                </div>
+                <h3 className="font-display text-3xl font-bold mb-6 uppercase tracking-tighter">{activeLesson.title}</h3>
+                <p className="font-sans text-lg leading-relaxed opacity-80 mb-12">{activeLesson.content}</p>
+                
+                <div className="flex flex-col gap-8">
+                  <button 
+                    onClick={() => toggleLesson(activeLesson.id)}
+                    className={`px-8 py-4 font-mono text-xs uppercase tracking-widest transition-all flex items-center gap-3 self-start ${
+                      completedLessons.includes(activeLesson.id) 
+                        ? 'bg-accent text-bg' 
+                        : 'border border-white/20 hover:border-accent hover:text-accent'
+                    }`}
+                  >
+                    {completedLessons.includes(activeLesson.id) ? <CheckCircle size={18} /> : null}
+                    {completedLessons.includes(activeLesson.id) ? 'Aula Concluída' : 'Marcar como Concluída'}
+                  </button>
 
-              {progress === 100 && user && (
-                <SubmissionForm 
-                  user={user} 
-                  course={course} 
-                  onSuccess={() => alert('Sua experimentação foi enviada para a galeria!')} 
-                />
-              )}
-            </div>
+                  {progress === 100 && user && (
+                    <SubmissionForm 
+                      user={user} 
+                      course={course} 
+                      onSuccess={() => alert('Sua experimentação foi enviada para a galeria!')} 
+                    />
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1192,6 +1581,10 @@ const SubmissionForm = ({ user, course, onSuccess }: { user: FirebaseUser; cours
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title || !opId || !desc) {
+      alert("Por favor, preencha todos os campos para enviar sua experimentação.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const submissionRef = doc(collection(db, 'submissions'));
@@ -1219,22 +1612,20 @@ const SubmissionForm = ({ user, course, onSuccess }: { user: FirebaseUser; cours
       <div className="space-y-4">
         <input 
           type="text" 
-          placeholder="Título da Obra" 
-          required
+          placeholder="Título da Obra *" 
           value={title}
           onChange={e => setTitle(e.target.value)}
           className="w-full bg-bg border border-white/20 p-4 font-mono text-sm focus:border-accent outline-none"
         />
         <input 
           type="text" 
-          placeholder="ID do Sketch no OpenProcessing (ex: 123456)" 
-          required
+          placeholder="ID do Sketch no OpenProcessing (ex: 123456) *" 
           value={opId}
           onChange={e => setOpId(e.target.value)}
           className="w-full bg-bg border border-white/20 p-4 font-mono text-sm focus:border-accent outline-none"
         />
         <textarea 
-          placeholder="Breve descrição do seu processo criativo" 
+          placeholder="Breve descrição do seu processo criativo *" 
           value={desc}
           onChange={e => setDesc(e.target.value)}
           className="w-full bg-bg border border-white/20 p-4 font-mono text-sm h-32 focus:border-accent outline-none"
@@ -1250,22 +1641,162 @@ const SubmissionForm = ({ user, course, onSuccess }: { user: FirebaseUser; cours
   );
 };
 
+const AdminView = ({ onNavigate }: { onNavigate: (v: View) => void }) => {
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      try {
+        const q = query(collection(db, 'enrollments'));
+        const querySnapshot = await getDocs(q);
+        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        // Sort by date descending
+        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setEnrollments(data);
+      } catch (error) {
+        console.error("Error fetching enrollments", error);
+        handleFirestoreError(error, OperationType.LIST, 'enrollments');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEnrollments();
+  }, []);
+
+  const exportToCSV = () => {
+    if (enrollments.length === 0) return;
+
+    const headers = [
+      'Data de Inscrição',
+      'Nome',
+      'Email',
+      'WhatsApp',
+      'Data de Nascimento',
+      'Cidade/Estado',
+      'Gênero',
+      'Raça/Cor',
+      'Oficina',
+      'Experiência',
+      'Motivação',
+      'Acessibilidade'
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...enrollments.map(e => {
+        const courseTitle = COURSES.find(c => c.id === e.courseId)?.title || e.courseId;
+        const row = [
+          new Date(e.createdAt).toLocaleDateString('pt-BR'),
+          `"${e.name || ''}"`,
+          `"${e.email || ''}"`,
+          `"${e.whatsapp || ''}"`,
+          `"${e.birthdate || ''}"`,
+          `"${e.cityState || ''}"`,
+          `"${e.gender || ''}"`,
+          `"${e.race || ''}"`,
+          `"${courseTitle}"`,
+          `"${(e.experience || '').replace(/"/g, '""')}"`,
+          `"${(e.motivation || '').replace(/"/g, '""')}"`,
+          `"${(e.accessibility || '').replace(/"/g, '""')}"`
+        ];
+        return row.join(',');
+      })
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `inscricoes_sonora_vista_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <main className="pt-32 pb-24 px-6 md:px-12 min-h-screen">
+      <button 
+        onClick={() => onNavigate('gallery')}
+        className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+      >
+        <ArrowLeft size={14} /> Voltar para Galeria
+      </button>
+      <section className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <ScramblePageTitle text="Painel do Professor" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+          <p className="font-sans opacity-60 max-w-2xl">Gerenciamento de inscrições e alunos.</p>
+        </div>
+        <button 
+          onClick={exportToCSV}
+          disabled={enrollments.length === 0}
+          className="flex items-center gap-2 px-6 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={16} /> Exportar CSV
+        </button>
+      </section>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-sans text-sm">
+            <thead className="bg-white/5 font-mono text-[10px] uppercase tracking-widest opacity-60">
+              <tr>
+                <th className="p-4 border-b border-white/10">Data</th>
+                <th className="p-4 border-b border-white/10">Nome</th>
+                <th className="p-4 border-b border-white/10">Email</th>
+                <th className="p-4 border-b border-white/10">Oficina</th>
+                <th className="p-4 border-b border-white/10">Telefone</th>
+                <th className="p-4 border-b border-white/10">Cidade/Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center opacity-50">Carregando inscrições...</td>
+                </tr>
+              ) : enrollments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center opacity-50">Nenhuma inscrição encontrada.</td>
+                </tr>
+              ) : (
+                enrollments.map((enrollment) => (
+                  <tr key={enrollment.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td className="p-4 opacity-70">{new Date(enrollment.createdAt).toLocaleDateString('pt-BR')}</td>
+                    <td className="p-4 font-bold">{enrollment.name}</td>
+                    <td className="p-4 opacity-70">{enrollment.email}</td>
+                    <td className="p-4 text-accent">{COURSES.find(c => c.id === enrollment.courseId)?.title || enrollment.courseId}</td>
+                    <td className="p-4 opacity-70">{enrollment.whatsapp || '-'}</td>
+                    <td className="p-4 opacity-70">{enrollment.cityState || '-'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  );
+};
+
 const LoginView = ({ onLogin }: { onLogin: () => void }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md p-12 border border-white/10 bg-white/5">
+    <div className="min-h-screen flex items-center justify-center p-6 relative z-10 pointer-events-auto">
+      <div className="w-full max-w-md p-12 border border-white/10 bg-white/5 shadow-2xl">
         <h2 className="font-display text-4xl font-bold uppercase tracking-tighter mb-8">Acesso ao <span className="text-accent">Lab</span></h2>
         <p className="font-sans opacity-60 mb-8 text-sm">Conecte-se com sua conta Google para acessar os workshops e salvar seu progresso na nuvem.</p>
         <button 
-          onClick={onLogin}
-          className="w-full py-4 bg-white text-bg font-display font-bold uppercase tracking-widest hover:bg-accent transition-colors flex items-center justify-center gap-3"
+          onClick={() => {
+            console.log("Botão de login clicado!");
+            onLogin();
+          }}
+          className="w-full py-4 bg-white text-bg font-display font-bold uppercase tracking-widest hover:bg-accent transition-colors flex items-center justify-center gap-3 cursor-pointer"
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
           Entrar com Google
         </button>
         <button 
           onClick={() => window.location.reload()} 
-          className="w-full mt-4 py-3 border border-white/10 hover:border-white/40 font-mono text-[10px] uppercase tracking-widest transition-all"
+          className="w-full mt-4 py-3 border border-white/10 hover:border-white/40 font-mono text-[10px] uppercase tracking-widest transition-all cursor-pointer"
         >
           Voltar para o Início
         </button>
@@ -1276,7 +1807,7 @@ const LoginView = ({ onLogin }: { onLogin: () => void }) => {
 
 // ... ArtworkCard and ArtworkModal remain similar ...
 
-const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolean; onClose: () => void; setView: (v: View) => void; currentView: View }) => {
+const MenuOverlay = ({ isOpen, onClose, setView, currentView, isAdmin }: { isOpen: boolean; onClose: () => void; setView: (v: View) => void; currentView: View; isAdmin?: boolean }) => {
   const menuItems: { label: string; view: View }[] = [
     { label: 'Galeria', view: 'gallery' },
     { label: 'Workshops', view: 'courses' },
@@ -1284,6 +1815,10 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView }: { isOpen: boolea
     { label: 'Artistas', view: 'artists' },
     { label: 'SONORA_VISTA PODCAST', view: 'podcast' }
   ];
+
+  if (isAdmin) {
+    menuItems.push({ label: 'Painel do Professor', view: 'admin' });
+  }
 
   return (
     <AnimatePresence>
@@ -1592,6 +2127,16 @@ Pesquisadora colaboradora do <span class="text-[#00FF00] font-bold drop-shadow-[
 ];
 
 const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) => {
+  const [hasScrolled, setHasScrolled] = React.useState(false);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop > 10) {
+      if (!hasScrolled) setHasScrolled(true);
+    } else {
+      if (hasScrolled) setHasScrolled(false);
+    }
+  };
+
   return (
     <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full">
       {/* Left Side: 40% */}
@@ -1613,25 +2158,44 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
       </div>
 
       {/* Right Side: 60% */}
-      <div className="w-full md:w-[60%] flex flex-col md:h-[400px]">
-        <div className="h-[120px] md:h-[180px] lg:h-[240px] mb-4 md:mb-6 flex items-start justify-center md:justify-start shrink-0">
+      <div className="w-full md:w-[60%] flex flex-col">
+        <div className="h-[140px] sm:h-[160px] md:h-[200px] lg:h-[240px] mb-4 md:mb-6 flex items-start justify-center md:justify-start shrink-0">
           <ScramblePageTitle 
             text={artist.name} 
             className="font-archivo text-4xl md:text-6xl lg:text-[5rem] leading-none uppercase text-white text-center md:text-left drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
           />
         </div>
         
-        <div className="flex-1 overflow-y-auto pr-2 md:pr-4 custom-scrollbar-magenta font-space text-sm md:text-base text-gray-300 leading-relaxed h-[250px] md:h-auto">
-          {artist.bio.split('\n').map((paragraph, i) => {
-            if (!paragraph.trim()) return null;
-            return (
-              <p 
-                key={i} 
-                className="mb-4 last:mb-0 text-left"
-                dangerouslySetInnerHTML={{ __html: paragraph }}
-              />
-            );
-          })}
+        <div className="relative w-full h-[250px] md:h-[300px] overflow-hidden">
+          <div 
+            onScroll={handleScroll}
+            className="h-full overflow-y-auto pr-2 md:pr-4 custom-scrollbar-magenta font-space text-sm md:text-base text-gray-300 leading-relaxed"
+          >
+            {artist.bio.split('\n').map((paragraph, i) => {
+              if (!paragraph.trim()) return null;
+              return (
+                <p 
+                  key={i} 
+                  className="mb-4 last:mb-0 text-left"
+                  dangerouslySetInnerHTML={{ __html: paragraph }}
+                />
+              );
+            })}
+            {/* Extra padding at the bottom so the last line isn't hidden by the gradient if it stays */}
+            <div className="h-12"></div>
+          </div>
+
+          {/* Fade-out Gradient Mask (Option 1) */}
+          <div 
+            className={`absolute bottom-0 left-0 right-4 h-24 bg-gradient-to-t from-bg via-bg/90 to-transparent pointer-events-none transition-opacity duration-500 ${hasScrolled ? 'opacity-0' : 'opacity-100'}`}
+          />
+
+          {/* Terminal Indicator (Option 2) */}
+          <div 
+            className={`absolute bottom-2 right-8 font-mono text-[#ff00ff] text-xs md:text-sm animate-pulse pointer-events-none transition-opacity duration-500 bg-bg px-3 py-1 rounded-md shadow-[0_0_10px_rgba(10,10,10,0.8)] ${hasScrolled ? 'opacity-0' : 'opacity-100'}`}
+          >
+            [ scroll ↓ ]
+          </div>
         </div>
       </div>
     </div>
@@ -1655,13 +2219,20 @@ const ArtistsView = () => {
     </div>
   );
 };
-
 export default function App() {
   return (
     <ErrorBoundary>
       <AppContent />
     </ErrorBoundary>
   );
+}
+
+interface AppUser {
+  uid: string;
+  name: string;
+  email: string;
+  role: string;
+  enrolledCourses?: string[];
 }
 
 function AppContent() {
@@ -1689,6 +2260,8 @@ function AppContent() {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchFilterType, setSearchFilterType] = useState<'OBRAS' | 'ARTISTAS' | 'DATA' | 'TAGS'>('OBRAS');
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [userData, setUserData] = useState<AppUser | null>(null);
+  const isAdmin = userData?.role === 'admin' || user?.email?.toLowerCase() === 'core0gam3@gmail.com';
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [studentSubmissions, setStudentSubmissions] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1710,7 +2283,8 @@ function AppContent() {
       artists: 'ARTISTAS',
       sonora: 'SONORA',
       podcast: 'Sonora_Vista Podcast',
-      login: 'LOGIN'
+      login: 'LOGIN',
+      admin: 'PAINEL DO PROFESSOR'
     };
     document.title = `${titles[view]} | VISTO_LAB`;
   }, [view]);
@@ -1735,6 +2309,8 @@ function AppContent() {
 
   // Auth State Listener
   useEffect(() => {
+    let unsubscribeUser: (() => void) | undefined;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
@@ -1743,23 +2319,51 @@ function AppContent() {
         try {
           const userDoc = await getDoc(userRef);
           if (!userDoc.exists()) {
+            const isInitialAdmin = firebaseUser.email?.toLowerCase() === 'core0gam3@gmail.com';
             await setDoc(userRef, {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'Anonymous',
               email: firebaseUser.email || '',
-              role: 'student',
+              role: isInitialAdmin ? 'admin' : 'student',
+              enrolledCourses: [],
               createdAt: new Date().toISOString()
             });
+          } else {
+            // Upgrade existing user to admin if email matches
+            if (firebaseUser.email?.toLowerCase() === 'core0gam3@gmail.com' && userDoc.data()?.role !== 'admin') {
+              await updateDoc(userRef, { role: 'admin' });
+            }
           }
         } catch (error) {
           handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUser.uid}`);
         }
+
+        // Listen to user data
+        unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setUserData(docSnap.data() as AppUser);
+          }
+        });
+
+        // Check for pending enrollment after login
+        const pendingCourseId = sessionStorage.getItem('pendingEnrollmentCourseId');
+        if (pendingCourseId) {
+          setEnrollmentCourseId(pendingCourseId);
+          sessionStorage.removeItem('pendingEnrollmentCourseId');
+          handleNavigate('courses');
+        }
       } else {
         setCompletedLessons([]);
+        setUserData(null);
+        if (unsubscribeUser) unsubscribeUser();
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      if (unsubscribeUser) unsubscribeUser();
+    };
   }, []);
 
   // Progress Sync
@@ -1775,7 +2379,9 @@ function AppContent() {
       } else {
         setCompletedLessons([]);
       }
-    }, (error) => {
+    }, (error: any) => {
+      console.error("Error in progress snapshot:", error);
+      alert("Erro ao carregar progresso: " + (error.message || error));
       handleFirestoreError(error, OperationType.GET, `progress/${progressId}`);
     });
 
@@ -1784,10 +2390,23 @@ function AppContent() {
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      handleNavigate('courses');
-    } catch (error) {
+      console.log("Iniciando login com Google...");
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("Login bem-sucedido:", result.user.email);
+      const isUserAdmin = result.user.email?.toLowerCase() === 'core0gam3@gmail.com';
+      
+      if (isUserAdmin) {
+        handleNavigate('admin');
+      } else {
+        handleNavigate('courses');
+        if (pendingEnrollmentCourseId) {
+          setEnrollmentCourseId(pendingEnrollmentCourseId);
+          setPendingEnrollmentCourseId(null);
+        }
+      }
+    } catch (error: any) {
       console.error("Login Error", error);
+      alert(`Erro ao fazer login: ${error.message || 'Erro desconhecido'}`);
     }
   };
 
@@ -1798,6 +2417,28 @@ function AppContent() {
     } catch (error) {
       console.error("Logout Error", error);
     }
+  };
+
+  const [enrollmentCourseId, setEnrollmentCourseId] = useState<string | null>(null);
+  const [pendingEnrollmentCourseId, setPendingEnrollmentCourseId] = useState<string | null>(null);
+
+  const handleEnrollClick = (courseId: string) => {
+    if (!user) {
+      sessionStorage.setItem('pendingEnrollmentCourseId', courseId);
+      setPendingEnrollmentCourseId(courseId);
+      handleNavigate('login');
+      return;
+    }
+    setEnrollmentCourseId(courseId);
+  };
+
+  const handleEnrollSuccess = (courseId: string) => {
+    setEnrollmentCourseId(null);
+    const course = COURSES.find(c => c.id === courseId);
+    if (course) {
+      setSelectedCourse(course);
+    }
+    alert('Inscrição realizada com sucesso! Bem-vindo(a) à oficina.');
   };
 
   const toggleLesson = async (lessonId: string) => {
@@ -1812,21 +2453,15 @@ function AppContent() {
       : [...completedLessons, lessonId];
 
     try {
-      const docSnap = await getDoc(progressRef);
-      if (docSnap.exists()) {
-        await updateDoc(progressRef, {
-          completedLessons: newProgress,
-          updatedAt: new Date().toISOString()
-        });
-      } else {
-        await setDoc(progressRef, {
-          userId: user.uid,
-          courseId: selectedCourse.id,
-          completedLessons: newProgress,
-          updatedAt: new Date().toISOString()
-        });
-      }
-    } catch (error) {
+      await setDoc(progressRef, {
+        userId: user.uid,
+        courseId: selectedCourse.id,
+        completedLessons: newProgress,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (error: any) {
+      console.error("Error toggling lesson:", error);
+      alert("Erro ao marcar progresso: " + (error.message || error));
       handleFirestoreError(error, OperationType.WRITE, `progress/${progressId}`);
     }
   };
@@ -1878,6 +2513,7 @@ function AppContent() {
         y={headerY}
         bg={headerBg}
         blur={headerBlur}
+        isAdmin={isAdmin}
       />
       
       <MenuOverlay 
@@ -1885,9 +2521,11 @@ function AppContent() {
         onClose={() => setIsMenuOpen(false)} 
         setView={handleNavigate}
         currentView={view}
+        isAdmin={isAdmin}
       />
       
       {view === 'login' && <LoginView onLogin={handleLogin} />}
+      {view === 'admin' && <AdminView onNavigate={handleNavigate} />}
 
       {view === 'gallery' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
@@ -2025,7 +2663,7 @@ function AppContent() {
           </button>
           <section className="mb-16">
             <ScramblePageTitle 
-              text="VISTO LAB"
+              text="WORKSHOPS"
               className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-6"
             />
             <p className="font-sans opacity-60 max-w-2xl text-lg leading-relaxed">Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia.</p>
@@ -2033,8 +2671,8 @@ function AppContent() {
 
           {!user && (
             <div className="mb-12 p-8 border border-accent/30 bg-accent/5 flex flex-col md:flex-row justify-between items-center gap-6">
-              <p className="font-display text-xl uppercase tracking-tight">Faça login para salvar seu progresso e obter certificados.</p>
-              <button onClick={() => handleNavigate('login')} className="px-8 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold">Entrar Agora</button>
+              <p className="font-display text-xl uppercase tracking-tight">Faça login com sua conta Google para poder se inscrever nas oficinas.</p>
+              <button onClick={() => handleNavigate('login')} className="px-8 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold">Fazer Login com Google para Inscrição</button>
             </div>
           )}
 
@@ -2060,7 +2698,9 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <ScramblePageTitle text="Transmissões ao Vivo" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <div className="h-[350px] sm:h-[300px] md:h-[250px] lg:h-[200px] flex items-start">
+              <ScramblePageTitle text="SESSÕES DE CASA ABERTA" subText="LIVE STREAMING" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter mb-4" />
+            </div>
             <p className="font-sans opacity-60 max-w-2xl">Acompanhe as experimentações e performances em tempo real.</p>
           </section>
           
@@ -2082,7 +2722,7 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <ScramblePageTitle text="Artistas" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <ScramblePageTitle text="ARTISTAS" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
           </section>
           <ArtistsView />
         </main>
@@ -2115,7 +2755,9 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <ScramblePageTitle text="Podcast" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            <div className="h-[350px] sm:h-[300px] md:h-[250px] lg:h-[200px] flex items-start">
+              <ScramblePageTitle text="SONORA_VISTA" subText="PODCAST" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+            </div>
             <p className="font-sans opacity-60 max-w-2xl">Conversas, entrevistas e reflexões sobre arte e tecnologia.</p>
           </section>
           <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
@@ -2130,6 +2772,23 @@ function AppContent() {
           completedLessons={completedLessons}
           toggleLesson={toggleLesson}
           user={user}
+          userData={userData}
+          onEnroll={handleEnrollClick}
+          onLogin={() => {
+            sessionStorage.setItem('pendingEnrollmentCourseId', selectedCourse.id);
+            setPendingEnrollmentCourseId(selectedCourse.id);
+            setSelectedCourse(null);
+            handleNavigate('login');
+          }}
+        />
+      )}
+
+      {enrollmentCourseId && user && (
+        <EnrollmentModal
+          course={COURSES.find(c => c.id === enrollmentCourseId)!}
+          user={user}
+          onClose={() => setEnrollmentCourseId(null)}
+          onSuccess={handleEnrollSuccess}
         />
       )}
 
