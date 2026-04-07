@@ -6,7 +6,7 @@ import { ARTWORKS, Artwork, COURSES, Course, Lesson } from './data';
 import { 
   auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, 
   doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs,
-  handleFirestoreError, OperationType, FirebaseUser
+  handleFirestoreError, OperationType, type FirebaseUser
 } from './firebase';
 
 type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin';
