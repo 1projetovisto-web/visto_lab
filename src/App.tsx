@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import * as Tone from 'tone';
 import { ARTWORKS, Artwork, COURSES, Course, Lesson } from './data';
 import { 
   auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, 
@@ -697,6 +698,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
     />
   );
 };
+
 const SCRAMBLE_CHARS = '!<>-_\\\\/[]{}—=+*^?#01';
 
 const ScrambleChar: React.FC<{ 
@@ -1127,6 +1129,8 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
   </motion.header>
 );
 
+// ... MenuOverlay remains similar ...
+
 const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, onOpen }) => (
   <motion.div 
     initial={{ opacity: 0, y: 30 }}
@@ -1490,7 +1494,7 @@ const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user, u
                 <button
                   onClick={() => user ? onEnroll(course.id) : onLogin()}
                   className="px-8 py-4 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold hover:opacity-90 transition-opacity"
-                  >
+                >
                   {user ? 'Matricular-se Gratuitamente' : 'Fazer Login com Google para Inscrição'}
                 </button>
               </div>
@@ -2219,6 +2223,7 @@ const ArtistsView = () => {
     </div>
   );
 };
+
 export default function App() {
   return (
     <ErrorBoundary>
