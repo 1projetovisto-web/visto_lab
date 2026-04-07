@@ -23,6 +23,25 @@ service cloud.firestore {
     //   - completedLessons: list (required)
     //   - updatedAt: string (optional)
     //
+    // Collection: enrollments
+    // Document ID: {enrollmentId}
+    // Fields:
+    //   - userId: string (required)
+    //   - courseId: string (required)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - whatsapp: string (required)
+    //   - birthdate: string (required)
+    //   - cityState: string (required)
+    //   - gender: string (required)
+    //   - race: string (required)
+    //   - accessibility: string (optional)
+    //   - experience: string (required)
+    //   - motivation: string (required)
+    //   - agreedToTerms: boolean (required)
+    //   - agreedToImageUse: boolean (required)
+    //   - createdAt: string (optional)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -56,7 +75,8 @@ service cloud.firestore {
              data.uid == request.auth.uid &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              isValidEmail(data.email) &&
-             data.role in ['student', 'admin'];
+             data.role in ['student', 'admin'] &&
+             (!('enrolledCourses' in data) || (data.enrolledCourses is list && data.enrolledCourses.size() <= 50));
     }
 
     function isValidProgress(data) {
@@ -65,6 +85,24 @@ service cloud.firestore {
              data.courseId is string &&
              data.completedLessons is list &&
              data.completedLessons.size() <= 100;
+    }
+
+    function isValidEnrollment(data) {
+      return data.keys().hasAll(['userId', 'courseId', 'name', 'email', 'whatsapp', 'birthdate', 'cityState', 'gender', 'race', 'experience', 'motivation', 'agreedToTerms', 'agreedToImageUse']) &&
+             data.userId == request.auth.uid &&
+             data.courseId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.whatsapp is string && data.whatsapp.size() < 20 &&
+             data.birthdate is string && data.birthdate.size() < 20 &&
+             data.cityState is string && data.cityState.size() < 100 &&
+             data.gender is string && data.gender.size() < 50 &&
+             data.race is string && data.race.size() < 50 &&
+             (!('accessibility' in data) || (data.accessibility is string && data.accessibility.size() < 500)) &&
+             data.experience is string && data.experience.size() < 50 &&
+             data.motivation is string && data.motivation.size() < 1000 &&
+             data.agreedToTerms == true &&
+             data.agreedToImageUse == true;
     }
 
     // ===============================================================
@@ -78,15 +116,21 @@ service cloud.firestore {
     }
 
     match /progress/{progressId} {
-      allow read: if isAuthenticated() && (progressId.startsWith(request.auth.uid) || (resource != null && resource.data.userId == request.auth.uid) || isAdmin());
+      allow read: if isAuthenticated() && (progressId.matches("^" + request.auth.uid + ".*") || (resource != null && resource.data.userId == request.auth.uid) || isAdmin());
       allow create: if isAuthenticated() && isValidProgress(request.resource.data) && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && isValidProgress(request.resource.data) && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidProgress(request.resource.data) && (resource == null || !('userId' in resource.data) || resource.data.userId == request.auth.uid);
     }
 
     match /submissions/{submissionId} {
       allow read: if true; // Gallery is public
       allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid;
       allow update, delete: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || isAdmin());
+    }
+
+    match /enrollments/{enrollmentId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidEnrollment(request.resource.data);
+      allow update, delete: if isAdmin();
     }
 
     match /test/connection {
