@@ -2181,8 +2181,8 @@ const LogosFooter = ({ onNavigate }: { onNavigate: (v: View) => void }) => (
     </div>
 
     <div className="relative z-30 mt-8 flex flex-col sm:flex-row items-center gap-4 sm:gap-8 font-mono text-[10px] uppercase tracking-widest text-black group-hover:text-[#CCFF00] transition-colors duration-500">
-      <button onClick={() => onNavigate('privacidade')} className="hover:underline">Política de Privacidade</button>
-      <button onClick={() => onNavigate('termos')} className="hover:underline">Termos de Serviço</button>
+      <a href="#privacidade" onClick={(e) => { e.preventDefault(); onNavigate('privacidade'); }} className="hover:underline">Política de Privacidade</a>
+      <a href="#termos" onClick={(e) => { e.preventDefault(); onNavigate('termos'); }} className="hover:underline">Termos de Serviço</a>
       <span className="opacity-50">© 2026 V.I.S.T.O</span>
     </div>
   </footer>
