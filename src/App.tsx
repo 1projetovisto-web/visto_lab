@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import * as Tone from 'tone';
-import { ARTWORKS, Artwork, COURSES, Course, Lesson } from './data';
+import { ARTWORKS, type Artwork, COURSES, type Course, type Lesson } from './data';
 import { 
   auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, 
   doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs,
   handleFirestoreError, OperationType, type FirebaseUser
 } from './firebase';
 
-type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin';
+type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin' | 'privacidade' | 'termos';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -1811,6 +1811,71 @@ const LoginView = ({ onLogin }: { onLogin: () => void }) => {
 
 // ... ArtworkCard and ArtworkModal remain similar ...
 
+const PrivacyPolicyView = ({ onNavigate }: { onNavigate: (v: View) => void }) => (
+  <main className="pt-32 pb-24 px-6 md:px-12 min-h-screen max-w-4xl mx-auto">
+    <button 
+      onClick={() => onNavigate('gallery')}
+      className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+    >
+      <ArrowLeft size={14} /> Voltar para Galeria
+    </button>
+    <ScramblePageTitle text="Política de Privacidade" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter mb-16 md:mb-24" />
+    <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed">
+      <p>Bem-vindo ao <strong>VISTO_LAB</strong>. A sua privacidade é fundamental para nós. Esta política descreve como tratamos as informações no contexto de nossas práticas de educação aberta e creative coding.</p>
+      
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">1. Coleta de Dados e Uso de Câmeras</h3>
+      <p>O VISTO_LAB utiliza tecnologias como <strong>p5.js</strong> e <strong>ml5.js</strong> para criar experiências interativas de arte digital. Algumas dessas experiências (sketches) podem solicitar acesso à sua <strong>webcam</strong> ou microfone para interações em tempo real (ex: rastreamento de movimento ou som).</p>
+      <p><strong>Importante:</strong> Todo o processamento de imagem e som feito via ml5.js ou p5.js ocorre <strong>localmente no seu navegador (client-side)</strong>. Nós não gravamos, não armazenamos e não enviamos imagens ou vídeos da sua webcam para nossos servidores.</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">2. Obras e Sketches no OpenProcessing</h3>
+      <p>Muitos dos nossos sketches originais são hospedados na plataforma <strong>OpenProcessing</strong> e incorporados (embedded) em nosso site. Ao interagir com essas obras, você também está sujeito aos termos e políticas de privacidade do OpenProcessing. O OpenProcessing é uma plataforma de código aberto voltada para a comunidade de creative coding.</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">3. Autenticação e Dados do Usuário</h3>
+      <p>Para acessar os workshops e salvar seu progresso, utilizamos o login social do Google via Firebase Authentication. Coletamos apenas as informações básicas fornecidas pelo Google (nome, e-mail e foto de perfil) estritamente para criar sua conta de estudante/professor e gerenciar suas inscrições e certificados.</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">4. Educação Aberta e Código Aberto</h3>
+      <p>O VISTO_LAB é fundamentado na filosofia de educação aberta. Os códigos-fonte dos nossos sketches são abertos para estudo e remixagem. Incentivamos o compartilhamento e a colaboração, respeitando as licenças de código aberto aplicáveis.</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">5. Contato</h3>
+      <p>Se você tiver alguma dúvida sobre esta Política de Privacidade, entre em contato através do e-mail: <strong>core0gam3@gmail.com</strong>.</p>
+      
+      <p className="mt-12 opacity-50 font-mono text-xs">Última atualização: Abril de 2026</p>
+    </div>
+  </main>
+);
+
+const TermsOfServiceView = ({ onNavigate }: { onNavigate: (v: View) => void }) => (
+  <main className="pt-32 pb-24 px-6 md:px-12 min-h-screen max-w-4xl mx-auto">
+    <button 
+      onClick={() => onNavigate('gallery')}
+      className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+    >
+      <ArrowLeft size={14} /> Voltar para Galeria
+    </button>
+    <ScramblePageTitle text="Termos de Serviço" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter mb-16 md:mb-24" />
+    <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed">
+      <p>Ao acessar e utilizar o <strong>VISTO_LAB</strong>, você concorda com os seguintes termos e condições. Se não concordar com algum destes termos, por favor, não utilize nossa plataforma.</p>
+      
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">1. Natureza do Projeto</h3>
+      <p>O VISTO_LAB é um espaço de experimentação em arte digital, performance e creative coding. Oferecemos workshops, galerias virtuais e sketches interativos baseados em tecnologias web (p5.js, ml5.js).</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">2. Uso de Tecnologias Interativas</h3>
+      <p>Algumas obras requerem o uso de periféricos como webcam e microfone. O usuário é responsável por conceder as permissões no navegador. O VISTO_LAB garante que o processamento dessas mídias ocorre localmente, sem armazenamento não autorizado.</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">3. Propriedade Intelectual e Código Aberto</h3>
+      <p>Os sketches hospedados no OpenProcessing e disponibilizados no VISTO_LAB seguem os princípios do código aberto. Você é livre para estudar, modificar e remixar os códigos para fins educacionais, desde que atribua os devidos créditos aos artistas originais (ex: Chico Machado, Roberta Savian Rosa) e ao projeto VISTO_LAB.</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">4. Conduta do Usuário</h3>
+      <p>Ao participar dos nossos workshops ou submeter experimentações para a Galeria Virtual, você se compromete a manter um ambiente de respeito mútuo. Não serão tolerados conteúdos ofensivos, discriminatórios ou que violem direitos de terceiros.</p>
+
+      <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">5. Modificações</h3>
+      <p>O VISTO_LAB reserva-se o direito de modificar estes termos a qualquer momento. O uso contínuo da plataforma após tais alterações constitui a sua aceitação dos novos termos.</p>
+
+      <p className="mt-12 opacity-50 font-mono text-xs">Última atualização: Abril de 2026</p>
+    </div>
+  </main>
+);
+
 const MenuOverlay = ({ isOpen, onClose, setView, currentView, isAdmin }: { isOpen: boolean; onClose: () => void; setView: (v: View) => void; currentView: View; isAdmin?: boolean }) => {
   const menuItems: { label: string; view: View }[] = [
     { label: 'Galeria', view: 'gallery' },
@@ -1862,9 +1927,15 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView, isAdmin }: { isOpe
               <Twitter className="hover:text-accent cursor-pointer" size={24} />
               <Github className="hover:text-accent cursor-pointer" size={24} />
             </div>
-            <p className="font-mono text-[10px] opacity-50 uppercase tracking-[0.3em] text-center">
-              © 2026 V.I.S.T.O: OCUPAÇÕES VÍDEO_COREOGRÁFICAS
-            </p>
+            <div className="flex flex-col items-center md:items-end gap-2">
+              <p className="font-mono text-[10px] opacity-50 uppercase tracking-[0.3em] text-center md:text-right">
+                © 2026 V.I.S.T.O: OCUPAÇÕES VÍDEO_COREOGRÁFICAS
+              </p>
+              <div className="flex gap-4 font-mono text-[10px] uppercase tracking-widest opacity-50">
+                <button onClick={() => { setView('privacidade'); onClose(); }} className="hover:text-accent hover:opacity-100 transition-colors">Privacidade</button>
+                <button onClick={() => { setView('termos'); onClose(); }} className="hover:text-accent hover:opacity-100 transition-colors">Termos</button>
+              </div>
+            </div>
           </div>
         </motion.div>
       )}
@@ -2083,8 +2154,8 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
   );
 };
 
-const LogosFooter = () => (
-  <footer className="relative w-full px-[2%] py-[40px] bg-[#CCFF00] hover:bg-black flex justify-center overflow-hidden group cursor-crosshair transition-colors duration-500">
+const LogosFooter = ({ onNavigate }: { onNavigate: (v: View) => void }) => (
+  <footer className="relative w-full px-[2%] py-[40px] bg-[#CCFF00] hover:bg-black flex flex-col items-center overflow-hidden group cursor-crosshair transition-colors duration-500">
     {/* CRT Scanline Overlay */}
     <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 z-20 transition-opacity duration-500 bg-[linear-gradient(rgba(204,255,0,0)_50%,rgba(204,255,0,0.1)_50%)] bg-[length:100%_4px]" />
     
@@ -2107,6 +2178,12 @@ const LogosFooter = () => (
         className="absolute inset-0 w-full h-full object-contain z-10 transition-all duration-500 opacity-0 group-hover:opacity-100 group-hover:drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]" 
         referrerPolicy="no-referrer"
       />
+    </div>
+
+    <div className="relative z-30 mt-8 flex flex-col sm:flex-row items-center gap-4 sm:gap-8 font-mono text-[10px] uppercase tracking-widest text-black group-hover:text-[#CCFF00] transition-colors duration-500">
+      <button onClick={() => onNavigate('privacidade')} className="hover:underline">Política de Privacidade</button>
+      <button onClick={() => onNavigate('termos')} className="hover:underline">Termos de Serviço</button>
+      <span className="opacity-50">© 2026 V.I.S.T.O</span>
     </div>
   </footer>
 );
@@ -2256,7 +2333,21 @@ function AppContent() {
   const introY = useTransform(scrollY, [0, 500], [0, -50]);
   const introOpacity = useTransform(scrollY, [0, 200], [1, 0]);
 
-  const [view, setView] = useState<View>('gallery');
+  const [view, setView] = useState<View>(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (['gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(hash)) {
+      return hash as View;
+    }
+    return 'gallery';
+  });
+
+  useEffect(() => {
+    if (view === 'gallery') {
+      window.history.replaceState(null, '', window.location.pathname);
+    } else {
+      window.location.hash = view;
+    }
+  }, [view]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -2531,6 +2622,8 @@ function AppContent() {
       
       {view === 'login' && <LoginView onLogin={handleLogin} />}
       {view === 'admin' && <AdminView onNavigate={handleNavigate} />}
+      {view === 'privacidade' && <PrivacyPolicyView onNavigate={handleNavigate} />}
+      {view === 'termos' && <TermsOfServiceView onNavigate={handleNavigate} />}
 
       {view === 'gallery' && (
         <main className="pt-32 pb-24 px-6 md:px-12">
@@ -2798,7 +2891,7 @@ function AppContent() {
       )}
 
       {/* Footer Info */}
-      <LogosFooter />
+      <LogosFooter onNavigate={handleNavigate} />
     </div>
   );
 }
