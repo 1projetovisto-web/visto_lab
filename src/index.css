@@ -16,6 +16,7 @@
 @layer base {
   body {
     @apply bg-bg text-fg font-sans antialiased selection:bg-accent selection:text-bg;
+    overflow-x: hidden;
   }
 }
 
@@ -49,12 +50,13 @@
   }
 }
 
+/* Updated Magenta Scrollbar (Thicker as requested) */
 .custom-scrollbar-magenta::-webkit-scrollbar {
-  width: 4px;
+  width: 8px;
 }
 
 .custom-scrollbar-magenta::-webkit-scrollbar-track {
-  background-color: transparent;
+  @apply bg-bg;
 }
 
 .custom-scrollbar-magenta::-webkit-scrollbar-thumb {
@@ -68,8 +70,8 @@
 
 @supports (-moz-appearance: none) {
   .custom-scrollbar-magenta {
-    scrollbar-width: thin;
-    scrollbar-color: #ff00ff transparent;
+    scrollbar-width: auto;
+    scrollbar-color: #ff00ff #0a0a0a;
   }
 }
 
@@ -104,4 +106,18 @@
 .search-focus:focus-within {
   border-color: #CCFF00 !important;
   color: #CCFF00 !important;
+}
+
+/* ESCONDE A BARRA DE ROLAGEM NO MENU */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.mask-linear-fade {
+  mask-image: linear-gradient(to right, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
 }
