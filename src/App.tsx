@@ -1133,68 +1133,30 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
 
 const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, onOpen }) => (
   <motion.div 
+    onClick={onOpen}
     initial={{ opacity: 0, y: 30 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
-    className="relative bg-white/5 border border-white/10 overflow-hidden group hover:border-accent/40 transition-all duration-700"
+    className="relative bg-white/5 border border-white/10 overflow-hidden group hover:border-accent/40 transition-all duration-700 cursor-pointer"
   >
     {/* Scanline Effect */}
     <div className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
     
-    <div className="aspect-video overflow-hidden relative">
+    <div className="aspect-video overflow-hidden relative bg-black/40">
       <img 
         src={course.thumbnailUrl} 
         alt={course.title} 
-        className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000 ease-out" 
+        className="w-full h-full object-contain grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000 ease-out" 
         referrerPolicy="no-referrer" 
       />
       <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 mix-blend-overlay" />
       
       {/* Floating Label */}
-      <div className="absolute top-4 left-4 z-20">
-        <span className="bg-accent text-bg px-3 py-1 font-mono text-[8px] uppercase font-bold tracking-widest">
-          {course.lessons.length} Módulos
+      <div className="absolute bottom-4 left-4 z-20">
+        <span className="bg-[#00FF00] text-black px-3 py-1 font-mono text-[10px] uppercase font-bold tracking-widest shadow-[0_0_8px_rgba(0,255,0,0.8)]">
+          10 MÓDULOS
         </span>
       </div>
-    </div>
-    
-    <div className="p-8 relative">
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="font-display text-2xl font-bold uppercase tracking-tighter group-hover:text-accent transition-colors duration-500">{course.title}</h3>
-        <span className="font-mono text-[10px] opacity-20 group-hover:opacity-100 transition-opacity">0{course.id}</span>
-      </div>
-      
-      <p className="font-sans text-sm opacity-60 mb-8 line-clamp-3 leading-relaxed group-hover:opacity-80 transition-opacity">
-        {course.description}
-      </p>
-      
-      <div className="flex flex-col gap-4">
-        <button 
-          onClick={onOpen}
-          className="relative w-full py-4 border border-white/10 overflow-hidden group/btn"
-        >
-          <span className="absolute inset-0 bg-accent translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500" />
-          <span className="relative z-10 font-mono text-[10px] uppercase tracking-[0.3em] font-bold group-hover/btn:text-bg transition-colors">
-            Iniciar Laboratório
-          </span>
-        </button>
-        
-        {course.classroomUrl && (
-          <a 
-            href={course.classroomUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full py-3 border border-white/5 hover:border-white/20 transition-all font-mono text-[9px] uppercase tracking-[0.2em] text-center flex items-center justify-center gap-2 opacity-40 hover:opacity-100"
-          >
-            Google Classroom <ArrowUpRight size={12} />
-          </a>
-        )}
-      </div>
-    </div>
-    
-    {/* Decorative Corner */}
-    <div className="absolute bottom-0 right-0 w-8 h-8 pointer-events-none">
-      <div className="absolute bottom-2 right-2 w-1 h-1 bg-accent/40 rounded-full group-hover:scale-[4] group-hover:bg-accent transition-all duration-700" />
     </div>
   </motion.div>
 );
@@ -1461,18 +1423,19 @@ const EnrollmentModal = ({ course, user, onClose, onSuccess }: {
   );
 };
 
-const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user, userData, onEnroll, onLogin }: { 
+const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user, userData, isAdmin, onEnroll, onLogin }: { 
   course: Course; 
   onClose: () => void;
   completedLessons: string[];
   toggleLesson: (id: string) => void;
   user: FirebaseUser | null;
   userData: AppUser | null;
+  isAdmin: boolean;
   onEnroll: (courseId: string) => void;
   onLogin: () => void;
 }) => {
   const [activeLesson, setActiveLesson] = useState<Lesson>(course.lessons[0]);
-  const isEnrolled = userData?.enrolledCourses?.includes(course.id);
+  const isEnrolled = userData?.enrolledCourses?.includes(course.id) || isAdmin;
   const progress = isEnrolled ? (completedLessons.filter(id => course.lessons.some(l => l.id === id)).length / course.lessons.length) * 100 : 0;
 
   return (
@@ -1500,10 +1463,18 @@ const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user, u
               </div>
             ) : (
               <>
-                <div className="aspect-video bg-white/5 border border-white/10 mb-12 flex items-center justify-center">
-                  <p className="font-mono opacity-30 uppercase tracking-widest">Video Player Placeholder</p>
+                <div className="aspect-video bg-black/40 border border-white/10 mb-8 overflow-hidden">
+                  <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-contain" />
                 </div>
-                <h3 className="font-display text-3xl font-bold mb-6 uppercase tracking-tighter">{activeLesson.title}</h3>
+                
+                <div className="mb-12">
+                  <h3 className="font-display text-3xl font-bold mb-6 uppercase tracking-tighter">{course.title}</h3>
+                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar pr-4 bg-white/5 border border-white/10 p-6">
+                    <p className="font-sans text-sm md:text-base leading-relaxed opacity-80 whitespace-pre-wrap">{course.description}</p>
+                  </div>
+                </div>
+
+                <h4 className="font-display text-2xl font-bold mb-6 uppercase tracking-tighter">{activeLesson.title}</h4>
                 <p className="font-sans text-lg leading-relaxed opacity-80 mb-12">{activeLesson.content}</p>
                 
                 <div className="flex flex-col gap-8">
@@ -2894,6 +2865,7 @@ function AppContent() {
           toggleLesson={toggleLesson}
           user={user}
           userData={userData}
+          isAdmin={isAdmin}
           onEnroll={handleEnrollClick}
           onLogin={() => {
             sessionStorage.setItem('pendingEnrollmentCourseId', selectedCourse.id);
@@ -2918,4 +2890,3 @@ function AppContent() {
     </div>
   );
 }
-
