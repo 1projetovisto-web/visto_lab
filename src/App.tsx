@@ -1819,7 +1819,9 @@ const PrivacyPolicyView = ({ onNavigate }: { onNavigate: (v: View) => void }) =>
     >
       <ArrowLeft size={14} /> Voltar para Galeria
     </button>
-    <ScramblePageTitle text="Política de Privacidade" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter mb-16 md:mb-24" />
+    <div className="mb-16 md:mb-24">
+      <ScramblePageTitle text="Política de Privacidade" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter" />
+    </div>
     <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed">
       <p>Bem-vindo ao <strong>VISTO_LAB</strong>. A sua privacidade é fundamental para nós. Esta política descreve como tratamos as informações no contexto de nossas práticas de educação aberta e creative coding.</p>
       
@@ -1852,7 +1854,9 @@ const TermsOfServiceView = ({ onNavigate }: { onNavigate: (v: View) => void }) =
     >
       <ArrowLeft size={14} /> Voltar para Galeria
     </button>
-    <ScramblePageTitle text="Termos de Serviço" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter mb-16 md:mb-24" />
+    <div className="mb-16 md:mb-24">
+      <ScramblePageTitle text="Termos de Serviço" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter" />
+    </div>
     <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed">
       <p>Ao acessar e utilizar o <strong>VISTO_LAB</strong>, você concorda com os seguintes termos e condições. Se não concordar com algum destes termos, por favor, não utilize nossa plataforma.</p>
       
@@ -2181,8 +2185,8 @@ const LogosFooter = ({ onNavigate }: { onNavigate: (v: View) => void }) => (
     </div>
 
     <div className="relative z-30 mt-8 flex flex-col sm:flex-row items-center gap-4 sm:gap-8 font-mono text-[10px] uppercase tracking-widest text-black group-hover:text-[#CCFF00] transition-colors duration-500">
-      <a href="#privacidade" onClick={(e) => { e.preventDefault(); onNavigate('privacidade'); }} className="hover:underline">Política de Privacidade</a>
-      <a href="#termos" onClick={(e) => { e.preventDefault(); onNavigate('termos'); }} className="hover:underline">Termos de Serviço</a>
+      <a href="/privacidade" onClick={(e) => { e.preventDefault(); onNavigate('privacidade'); }} className="hover:underline">Política de Privacidade</a>
+      <a href="/termos" onClick={(e) => { e.preventDefault(); onNavigate('termos'); }} className="hover:underline">Termos de Serviço</a>
       <span className="opacity-50">© 2026 V.I.S.T.O</span>
     </div>
   </footer>
@@ -2334,6 +2338,10 @@ function AppContent() {
   const introOpacity = useTransform(scrollY, [0, 200], [1, 0]);
 
   const [view, setView] = useState<View>(() => {
+    const path = window.location.pathname.replace('/', '');
+    if (['gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(path)) {
+      return path as View;
+    }
     const hash = window.location.hash.replace('#', '');
     if (['gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(hash)) {
       return hash as View;
@@ -2343,11 +2351,24 @@ function AppContent() {
 
   useEffect(() => {
     if (view === 'gallery') {
-      window.history.replaceState(null, '', window.location.pathname);
+      window.history.pushState(null, '', '/');
     } else {
-      window.location.hash = view;
+      window.history.pushState(null, '', `/${view}`);
     }
   }, [view]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.replace('/', '');
+      if (['gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(path)) {
+        setView(path as View);
+      } else {
+        setView('gallery');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -2380,7 +2401,9 @@ function AppContent() {
       sonora: 'SONORA',
       podcast: 'Sonora_Vista Podcast',
       login: 'LOGIN',
-      admin: 'PAINEL DO PROFESSOR'
+      admin: 'PAINEL DO PROFESSOR',
+      privacidade: 'POLÍTICA DE PRIVACIDADE',
+      termos: 'TERMOS DE SERVIÇO'
     };
     document.title = `${titles[view]} | VISTO_LAB`;
   }, [view]);
@@ -2895,3 +2918,4 @@ function AppContent() {
     </div>
   );
 }
+
