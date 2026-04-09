@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink } from 'lucide-react';
 import * as Tone from 'tone';
 import { ARTWORKS, type Artwork, COURSES, type Course, type Lesson } from './data';
 import { 
@@ -1137,7 +1137,7 @@ const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, 
     initial={{ opacity: 0, y: 30 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
-    className="relative bg-white/5 border border-white/10 overflow-hidden group hover:border-accent/40 transition-all duration-700 cursor-pointer"
+    className="relative bg-white/5 border border-white/10 overflow-hidden group hover:border-accent/40 transition-all duration-700 cursor-pointer flex flex-col h-full"
   >
     {/* Scanline Effect */}
     <div className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
@@ -1146,15 +1146,23 @@ const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, 
       <img 
         src={course.thumbnailUrl} 
         alt={course.title} 
-        className="w-full h-full object-contain grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000 ease-out" 
+        className="w-full h-full object-contain grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000 ease-out" 
         referrerPolicy="no-referrer" 
       />
       <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 mix-blend-overlay" />
-      
-      {/* Floating Label */}
-      <div className="absolute bottom-4 left-4 z-20">
-        <span className="bg-[#00FF00] text-black px-3 py-1 font-mono text-[10px] uppercase font-bold tracking-widest shadow-[0_0_8px_rgba(0,255,0,0.8)]">
-          10 MÓDULOS
+    </div>
+    
+    <div className="p-6 flex flex-col flex-grow justify-between relative z-20 bg-bg/80 backdrop-blur-sm">
+      <div>
+        <h3 className="font-display text-xl font-bold mb-2 uppercase tracking-tight group-hover:text-accent transition-colors">{course.title}</h3>
+        <p className="font-sans text-sm opacity-60 mb-4">{course.instructor}</p>
+      </div>
+      <div className="flex items-center justify-between mt-4">
+        <span className="bg-[#00FF00] text-black px-3 py-1 font-mono text-[10px] uppercase font-bold tracking-widest shadow-[0_0_10px_rgba(0,255,0,0.6)]">
+          10 UNIDADES
+        </span>
+        <span className="text-accent text-sm font-bold uppercase tracking-wider flex items-center">
+          Acessar <ArrowRight size={16} className="ml-2 group-hover:translate-x-2 transition-transform" />
         </span>
       </div>
     </div>
@@ -1449,31 +1457,31 @@ const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user, u
         </div>
         <div className="flex-1 p-8 md:p-12 overflow-y-auto custom-scrollbar">
           <div className="max-w-4xl mx-auto">
+            <div className="aspect-video bg-black/40 border border-white/10 mb-8 overflow-hidden">
+              <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-contain" />
+            </div>
+            
+            <div className="mb-12">
+              <h3 className="font-display text-3xl font-bold mb-6 uppercase tracking-tighter">{course.title}</h3>
+              <div className="max-h-[400px] overflow-y-auto custom-scrollbar pr-4 bg-white/5 border border-white/10 p-6">
+                <p className="font-sans text-sm md:text-base leading-relaxed opacity-80 whitespace-pre-wrap">{course.description}</p>
+              </div>
+            </div>
+
             {!isEnrolled ? (
-              <div className="p-12 bg-white/5 border border-white/10 text-center flex flex-col items-center justify-center min-h-[400px]">
+              <div className="p-12 bg-white/5 border border-white/10 text-center flex flex-col items-center justify-center">
                 <Lock size={48} className="mb-6 opacity-50" />
                 <h3 className="font-display text-3xl font-bold mb-4 uppercase tracking-tighter">Conteúdo Exclusivo</h3>
                 <p className="font-sans opacity-60 mb-8 max-w-md text-lg">Matricule-se neste workshop para ter acesso a todas as aulas, materiais complementares e certificado de conclusão.</p>
                 <button
                   onClick={() => user ? onEnroll(course.id) : onLogin()}
-                  className="px-8 py-4 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold hover:opacity-90 transition-opacity"
+                  className="px-8 py-4 bg-[#00FF00] text-black font-mono text-[10px] uppercase tracking-widest font-bold hover:opacity-90 transition-opacity shadow-[0_0_10px_rgba(0,255,0,0.6)]"
                 >
-                  {user ? 'Matricular-se Gratuitamente' : 'Fazer Login com Google para Inscrição'}
+                  Acessar Unidades
                 </button>
               </div>
             ) : (
               <>
-                <div className="aspect-video bg-black/40 border border-white/10 mb-8 overflow-hidden">
-                  <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-contain" />
-                </div>
-                
-                <div className="mb-12">
-                  <h3 className="font-display text-3xl font-bold mb-6 uppercase tracking-tighter">{course.title}</h3>
-                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar pr-4 bg-white/5 border border-white/10 p-6">
-                    <p className="font-sans text-sm md:text-base leading-relaxed opacity-80 whitespace-pre-wrap">{course.description}</p>
-                  </div>
-                </div>
-
                 <h4 className="font-display text-2xl font-bold mb-6 uppercase tracking-tighter">{activeLesson.title}</h4>
                 <p className="font-sans text-lg leading-relaxed opacity-80 mb-12">{activeLesson.content}</p>
                 
@@ -1513,6 +1521,19 @@ const CourseViewer = ({ course, onClose, completedLessons, toggleLesson, user, u
           <p className="font-mono text-[10px] mt-2 text-right">{Math.round(progress)}%</p>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {isEnrolled && course.classroomUrl && (
+            <div className="p-6 border-b border-white/10">
+              <a 
+                href={course.classroomUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center w-full py-3 px-4 bg-[#00FF00] text-black hover:bg-white hover:text-black border border-[#00FF00] hover:border-white transition-all duration-300 font-mono text-[10px] uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(0,255,0,0.4)]"
+              >
+                <ExternalLink size={14} className="mr-2" />
+                Google Classroom
+              </a>
+            </div>
+          )}
           {course.lessons.map((lesson, idx) => (
             <button
               key={lesson.id}
@@ -1683,7 +1704,7 @@ const AdminView = ({ onNavigate }: { onNavigate: (v: View) => void }) => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `inscricoes_sonora_vista_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `LISTA_INSCRITOS_VISTO_LAB_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1699,7 +1720,7 @@ const AdminView = ({ onNavigate }: { onNavigate: (v: View) => void }) => {
       </button>
       <section className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <ScramblePageTitle text="Painel do Professor" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+          <ScramblePageTitle text="Gestão de Oficinas - VISTO LAB" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
           <p className="font-sans opacity-60 max-w-2xl">Gerenciamento de inscrições e alunos.</p>
         </div>
         <button 
@@ -1707,7 +1728,7 @@ const AdminView = ({ onNavigate }: { onNavigate: (v: View) => void }) => {
           disabled={enrollments.length === 0}
           className="flex items-center gap-2 px-6 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download size={16} /> Exportar CSV
+          <Download size={16} /> Baixar Lista de Inscritos (CSV)
         </button>
       </section>
 
@@ -2349,6 +2370,7 @@ function AppContent() {
   const [searchFilterType, setSearchFilterType] = useState<'OBRAS' | 'ARTISTAS' | 'DATA' | 'TAGS'>('OBRAS');
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<AppUser | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const isAdmin = userData?.role === 'admin' || user?.email?.toLowerCase() === 'core0gam3@gmail.com';
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [studentSubmissions, setStudentSubmissions] = useState<Artwork[]>([]);
@@ -2392,7 +2414,11 @@ function AppContent() {
       } as Artwork));
       setStudentSubmissions(subs);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'submissions');
+      try {
+        handleFirestoreError(error, OperationType.GET, 'submissions');
+      } catch (e) {
+        // Ignorar o erro lançado para evitar "Uncaught Error in snapshot listener"
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -2402,6 +2428,7 @@ function AppContent() {
     let unsubscribeUser: (() => void) | undefined;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("[Auth] Mudança de estado detectada. Usuário:", firebaseUser?.email || "Deslogado");
       setUser(firebaseUser);
       if (firebaseUser) {
         // Ensure user document exists
@@ -2433,18 +2460,41 @@ function AppContent() {
           if (docSnap.exists()) {
             setUserData(docSnap.data() as AppUser);
           }
+        }, (error) => {
+          console.error("[Auth] Erro no snapshot do usuário:", error);
+          try {
+            handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          } catch (e) {
+            // Ignoramos o erro de permissão aqui pois ele pode ocorrer brevemente durante o logout
+          }
         });
 
         // Check for pending enrollment after login
         const pendingCourseId = sessionStorage.getItem('pendingEnrollmentCourseId');
         if (pendingCourseId) {
-          setEnrollmentCourseId(pendingCourseId);
           sessionStorage.removeItem('pendingEnrollmentCourseId');
-          handleNavigate('courses');
+          const isUserAdmin = firebaseUser.email?.toLowerCase() === 'core0gam3@gmail.com';
+          
+          // We need to check if the user is already enrolled.
+          // Since userData might not be loaded yet, we fetch the user doc directly.
+          const userDoc = await getDoc(userRef);
+          const isEnrolled = userDoc.exists() && userDoc.data().enrolledCourses?.includes(pendingCourseId);
+
+          if (isUserAdmin || isEnrolled) {
+            const course = COURSES.find(c => c.id === pendingCourseId);
+            if (course) setSelectedCourse(course);
+            handleNavigate('courses');
+          } else {
+            setEnrollmentCourseId(pendingCourseId);
+            handleNavigate('courses');
+          }
         }
       } else {
+        console.log("[Auth] Estado null detectado. Limpando dados locais...");
         setCompletedLessons([]);
         setUserData(null);
+        setEnrollmentCourseId(null);
+        setPendingEnrollmentCourseId(null);
         if (unsubscribeUser) unsubscribeUser();
       }
       setLoading(false);
@@ -2471,41 +2521,79 @@ function AppContent() {
       }
     }, (error: any) => {
       console.error("Error in progress snapshot:", error);
-      alert("Erro ao carregar progresso: " + (error.message || error));
-      handleFirestoreError(error, OperationType.GET, `progress/${progressId}`);
+      try {
+        handleFirestoreError(error, OperationType.GET, `progress/${progressId}`);
+      } catch (e) {
+        // Ignorar o erro lançado para evitar "Uncaught Error in snapshot listener"
+      }
     });
 
     return () => unsubscribe();
   }, [user, selectedCourse]);
 
   const handleLogin = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
     try {
-      console.log("Iniciando login com Google...");
+      console.log("[Auth] Iniciando login com Google...");
+      
+      // Força a seleção de conta, matando o "fantasma" da sessão anterior
+      googleProvider.setCustomParameters({
+        prompt: 'select_account'
+      });
+
       const result = await signInWithPopup(auth, googleProvider);
-      console.log("Login bem-sucedido:", result.user.email);
+      console.log("[Auth] Login bem-sucedido:", result.user.email);
       const isUserAdmin = result.user.email?.toLowerCase() === 'core0gam3@gmail.com';
       
       if (isUserAdmin) {
-        handleNavigate('admin');
+        if (pendingEnrollmentCourseId) {
+          const course = COURSES.find(c => c.id === pendingEnrollmentCourseId);
+          if (course) setSelectedCourse(course);
+          setPendingEnrollmentCourseId(null);
+          handleNavigate('courses');
+        } else {
+          handleNavigate('admin');
+        }
       } else {
         handleNavigate('courses');
         if (pendingEnrollmentCourseId) {
-          setEnrollmentCourseId(pendingEnrollmentCourseId);
-          setPendingEnrollmentCourseId(null);
+          // We need to wait for userData to load to know if they are enrolled.
+          // The onAuthStateChanged listener handles this logic now.
+          // We just leave the pending ID in state.
         }
       }
     } catch (error: any) {
-      console.error("Login Error", error);
-      alert(`Erro ao fazer login: ${error.message || 'Erro desconhecido'}`);
+      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+        console.log("[Auth] Popup fechado pelo usuário ou requisição cancelada.");
+      } else {
+        console.error("[Auth] Erro crítico durante o login:", error);
+        alert(`Erro ao fazer login: ${error.message || 'Erro desconhecido'}`);
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
   const handleLogout = async () => {
     try {
+      console.log("[Auth] Iniciando logout (Hard Reset)...");
       await signOut(auth);
+      
+      // Limpeza forçada de todo o estado global
+      setUser(null);
+      setUserData(null);
+      setCompletedLessons([]);
+      setEnrollmentCourseId(null);
+      setPendingEnrollmentCourseId(null);
+      
+      // Limpeza rigorosa do cache do navegador
+      sessionStorage.clear();
+      
+      console.log("[Auth] Logout concluído. Estado e cache limpos.");
       handleNavigate('gallery');
     } catch (error) {
-      console.error("Logout Error", error);
+      console.error("[Auth] Erro crítico durante o logout:", error);
     }
   };
 
@@ -2519,7 +2607,18 @@ function AppContent() {
       handleNavigate('login');
       return;
     }
-    setEnrollmentCourseId(courseId);
+    
+    // Check if user is already enrolled in THIS SPECIFIC course
+    const isEnrolled = userData?.enrolledCourses?.includes(courseId) || isAdmin;
+    
+    if (isEnrolled) {
+      const course = COURSES.find(c => c.id === courseId);
+      if (course) {
+        setSelectedCourse(course);
+      }
+    } else {
+      setEnrollmentCourseId(courseId);
+    }
   };
 
   const handleEnrollSuccess = (courseId: string) => {
