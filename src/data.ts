@@ -164,3 +164,4 @@ export const ARTWORKS: Artwork[] = [
     medium: 'Circuit Bending'
   }
 ];
+
