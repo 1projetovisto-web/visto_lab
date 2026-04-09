@@ -872,7 +872,7 @@ const ScrambleTitle = ({ onClick }: { onClick: () => void }) => {
     <h1 
       onClick={onClick}
       onMouseEnter={handleMouseOver}
-      className="font-mono text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-2 py-1 md:px-3 md:py-2 rounded-2xl transition-all duration-300 flex items-center gap-1 md:gap-2 group shrink-0"
+      className="font-mono text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight uppercase cursor-pointer hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-2 py-1 md:px-3 md:py-2 rounded-2xl transition-all duration-300 flex items-center gap-1 md:gap-2 group shrink-0"
     >
       <span>{text1}</span> <span className="text-accent group-hover:text-white transition-colors duration-300">{text2}</span>
     </h1>
@@ -1037,10 +1037,10 @@ const UserProfileMenu = ({ user, isAdmin, currentView, setView, onLogout }: {
         aria-label="Menu do Usuário"
       >
         {user.photoURL ? (
-          <img src={user.photoURL} alt="Avatar" className="w-6 h-6 rounded-full border border-white/20" referrerPolicy="no-referrer" />
+          <img src={user.photoURL} alt="Avatar" className="w-6 h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8 rounded-full border border-white/20" referrerPolicy="no-referrer" />
         ) : (
           <div className="relative">
-            <User size={20} className="md:w-6 md:h-6" />
+            <User size={20} className="md:w-6 md:h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8" />
             <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>
           </div>
         )}
@@ -1106,18 +1106,18 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
           <ScrambleTitle onClick={() => setView('gallery')} />
         </div>
         <nav className="hidden sm:flex items-center gap-1 md:gap-2 lg:gap-3 xl:gap-4 flex-nowrap overflow-x-auto hide-scrollbar py-4 -my-4 px-4 -mx-4">
-          <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold text-xs md:text-sm lg:text-base" />
-          <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold text-xs md:text-sm lg:text-base" />
-          <ScrambleNavItem text="AO VIVO" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold text-xs md:text-sm lg:text-base" />
-          <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} className="font-bold text-xs md:text-sm lg:text-base" />
-          <ScrambleNavItem as="h2" text="SONORA_VISTA" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} aria-label="Sonora Vista Podcast" className="font-bold text-xs md:text-sm lg:text-base whitespace-nowrap" />
+          <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
+          <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
+          <ScrambleNavItem text="AO VIVO" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
+          <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
+          <ScrambleNavItem as="h2" text="SONORA_VISTA" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} aria-label="Sonora Vista Podcast" className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl whitespace-nowrap" />
         </nav>
       </div>
       <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0 ml-auto pl-2 sm:pl-4">
         {user ? (
           <UserProfileMenu user={user} isAdmin={isAdmin} currentView={currentView} setView={setView} onLogout={onLogout} />
         ) : (
-          <button onClick={() => setView('login')} className="p-2 hover:text-accent" aria-label="Login"><User size={20} className="md:w-6 md:h-6" /></button>
+          <button onClick={() => setView('login')} className="p-2 hover:text-accent" aria-label="Login"><User size={20} className="md:w-6 md:h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8" /></button>
         )}
         <button 
           onClick={onToggleMenu}
@@ -3095,3 +3095,4 @@ function AppContent() {
     </div>
   );
 }
+
