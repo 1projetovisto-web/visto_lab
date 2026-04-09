@@ -2897,7 +2897,7 @@ function AppContent() {
               </div>
               <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
                 <img 
-                  src="/espera_ao vivo.webp" 
+                  src="/espera_ao_vivo.webp" 
                   alt="AO VIVO — SESSÕES DE CASA ABERTA" 
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
@@ -3009,7 +3009,7 @@ function AppContent() {
               </div>
               <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
                 <img 
-                  src="/espera.sonora_vista.webp" 
+                  src="/espera_sonora_vista.webp" 
                   alt="SONORA_VISTA PODCAST" 
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
