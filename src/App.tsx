@@ -964,7 +964,7 @@ const ScramblePageTitle = ({ text, subText, className }: { text: string, subText
         text
           .split("")
           .map((char, index) => {
-            if(char === ' ' || char === '.' || char === 'Ⓐ' || char === '"') return char;
+            if(char === ' ' || char === '.' || char === 'Ⓐ' || char === '"' || char === '_' || char === '-' || char === ':') return char;
             if(index < iteration) return text[index];
             return letters[Math.floor(Math.random() * 26)];
           })
@@ -976,7 +976,7 @@ const ScramblePageTitle = ({ text, subText, className }: { text: string, subText
           subText
             .split("")
             .map((char, index) => {
-              if(char === ' ' || char === '.' || char === 'Ⓐ' || char === '"') return char;
+              if(char === ' ' || char === '.' || char === 'Ⓐ' || char === '"' || char === '_' || char === '-' || char === ':') return char;
               if(index < iteration) return subText[index];
               return letters[Math.floor(Math.random() * 26)];
             })
@@ -1098,33 +1098,35 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
 }) => (
   <motion.header 
     style={{ y, backgroundColor: bg, backdropFilter: blur }}
-    className="fixed top-0 left-0 w-full z-50 px-4 sm:px-6 py-4 flex justify-between items-center transition-colors duration-300 border-b border-white/5"
+    className="fixed top-0 left-0 w-full z-50 transition-colors duration-300 border-b border-white/5"
   >
-    <div className="pointer-events-auto flex items-center gap-4 xl:gap-8 flex-1 min-w-0">
-      <div className="shrink-0">
-        <ScrambleTitle onClick={() => setView('gallery')} />
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex justify-between items-center w-full">
+      <div className="pointer-events-auto flex items-center gap-4 xl:gap-8 flex-1 min-w-0">
+        <div className="shrink-0">
+          <ScrambleTitle onClick={() => setView('gallery')} />
+        </div>
+        <nav className="hidden sm:flex items-center gap-1 md:gap-2 lg:gap-3 xl:gap-4 flex-nowrap overflow-x-auto hide-scrollbar py-4 -my-4 px-4 -mx-4">
+          <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold text-xs md:text-sm lg:text-base" />
+          <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold text-xs md:text-sm lg:text-base" />
+          <ScrambleNavItem text="AO VIVO" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold text-xs md:text-sm lg:text-base" />
+          <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} className="font-bold text-xs md:text-sm lg:text-base" />
+          <ScrambleNavItem as="h2" text="SONORA_VISTA" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} aria-label="Sonora Vista Podcast" className="font-bold text-xs md:text-sm lg:text-base whitespace-nowrap" />
+        </nav>
       </div>
-      <nav className="hidden sm:flex items-center gap-1 md:gap-2 lg:gap-3 xl:gap-4 flex-nowrap overflow-x-auto hide-scrollbar py-4 -my-4 px-4 -mx-4">
-        <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold text-xs md:text-sm lg:text-base" />
-        <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold text-xs md:text-sm lg:text-base" />
-        <ScrambleNavItem text="AO VIVO" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold text-xs md:text-sm lg:text-base" />
-        <ScrambleNavItem text="Artistas" onClick={() => currentView === 'artists' ? setView('gallery') : setView('artists')} isActive={currentView === 'artists'} className="font-bold text-xs md:text-sm lg:text-base" />
-        <ScrambleNavItem as="h2" text="SONORA_VISTA" onClick={() => currentView === 'podcast' ? setView('gallery') : setView('podcast')} isActive={currentView === 'podcast'} aria-label="Sonora Vista Podcast" className="font-bold text-xs md:text-sm lg:text-base whitespace-nowrap" />
-      </nav>
-    </div>
-    <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0 ml-auto pl-2 sm:pl-4">
-      {user ? (
-        <UserProfileMenu user={user} isAdmin={isAdmin} currentView={currentView} setView={setView} onLogout={onLogout} />
-      ) : (
-        <button onClick={() => setView('login')} className="p-2 hover:text-accent" aria-label="Login"><User size={20} className="md:w-6 md:h-6" /></button>
-      )}
-      <button 
-        onClick={onToggleMenu}
-        className="p-2 hover:text-accent transition-colors sm:hidden shrink-0"
-        aria-label="Menu"
-      >
-        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      <div className="pointer-events-auto flex items-center gap-2 md:gap-4 shrink-0 ml-auto pl-2 sm:pl-4">
+        {user ? (
+          <UserProfileMenu user={user} isAdmin={isAdmin} currentView={currentView} setView={setView} onLogout={onLogout} />
+        ) : (
+          <button onClick={() => setView('login')} className="p-2 hover:text-accent" aria-label="Login"><User size={20} className="md:w-6 md:h-6" /></button>
+        )}
+        <button 
+          onClick={onToggleMenu}
+          className="p-2 hover:text-accent transition-colors sm:hidden shrink-0"
+          aria-label="Menu"
+        >
+          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
     </div>
   </motion.header>
 );
@@ -3020,10 +3022,10 @@ function AppContent() {
 
             {/* Right Side: Content */}
             <div className="w-full md:w-[60%] flex flex-col">
-              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0 min-h-[180px]">
+              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0 min-h-[220px] md:min-h-[180px]">
                 <ScramblePageTitle 
                   text="SONORA_VISTA PODCAST" 
-                  className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                  className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] h-[140px] md:h-[120px] lg:h-[140px] justify-center"
                 />
                 <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41] mt-2">
                   Uma escuta dos bastidores — onde ideias, práticas e experimentações ganham voz.
