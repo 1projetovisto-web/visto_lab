@@ -2907,11 +2907,12 @@ function AppContent() {
 
             {/* Right Side: Content */}
             <div className="w-full md:w-[60%] flex flex-col">
-              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0">
-                <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter mb-4 text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
-                  AO VIVO — SESSÕES DE CASA ABERTA
-                </h1>
-                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41]">
+              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0 min-h-[180px]">
+                <ScramblePageTitle 
+                  text="AO VIVO — SESSÕES DE CASA ABERTA" 
+                  className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                />
+                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41] mt-2">
                   Um laboratório em fluxo contínuo onde corpo, código e som se atravessam. Acompanhe processos em tempo real e acesse a criação no instante em que ela acontece.
                 </p>
               </div>
@@ -3019,11 +3020,12 @@ function AppContent() {
 
             {/* Right Side: Content */}
             <div className="w-full md:w-[60%] flex flex-col">
-              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0">
-                <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter mb-4 text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
-                  SONORA_VISTA PODCAST
-                </h1>
-                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41]">
+              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0 min-h-[180px]">
+                <ScramblePageTitle 
+                  text="SONORA_VISTA PODCAST" 
+                  className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                />
+                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41] mt-2">
                   Uma escuta dos bastidores — onde ideias, práticas e experimentações ganham voz.
                 </p>
               </div>
