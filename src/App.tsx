@@ -2884,21 +2884,76 @@ function AppContent() {
         <main className="pt-32 pb-24 px-6 md:px-12">
           <button 
             onClick={() => handleNavigate('gallery')}
-            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-[#00FF41] hover:translate-x-[-4px] transition-transform"
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
-          <section className="mb-16">
-            <div className="h-[350px] sm:h-[300px] md:h-[250px] lg:h-[200px] flex items-start">
-              <ScramblePageTitle text="SESSÕES DE CASA ABERTA" subText="LIVE STREAMING" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter mb-4" />
-            </div>
-            <p className="font-sans opacity-60 max-w-2xl">Acompanhe as experimentações e performances em tempo real.</p>
-          </section>
           
-          <div className="aspect-video bg-white/5 border border-white/10 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-4 h-4 bg-accent rounded-full animate-pulse mx-auto mb-4" />
-              <p className="font-mono text-xs uppercase tracking-widest opacity-40">Nenhuma transmissão ativa no momento</p>
+          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full max-w-7xl mx-auto">
+            {/* Left Side: Image */}
+            <div className="w-full md:w-[40%] flex justify-center items-center relative shrink-0">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
+              </div>
+              <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
+                <img 
+                  src="/espera_ao vivo.webp" 
+                  alt="AO VIVO — SESSÕES DE CASA ABERTA" 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+
+            {/* Right Side: Content */}
+            <div className="w-full md:w-[60%] flex flex-col">
+              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0">
+                <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter mb-4 text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                  AO VIVO — SESSÕES DE CASA ABERTA
+                </h1>
+                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41]">
+                  Um laboratório em fluxo contínuo onde corpo, código e som se atravessam. Acompanhe processos em tempo real e acesse a criação no instante em que ela acontece.
+                </p>
+              </div>
+              
+              <div className="relative w-full h-[350px] md:h-[450px] overflow-hidden border border-white/10 rounded-xl bg-white/5 pointer-events-auto">
+                <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+                
+                <div className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8">
+                  <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed pb-8">
+                    <p className="font-mono text-xs text-[#00FF41] uppercase tracking-widest">[LOG_SESSÃO]: CASA ABERTA #01 a #08</p>
+                    <p>As Sessões de Casa Aberta são dispositivos de exposição de processo — momentos em que o V.I.S.T.O abre seu espaço e compartilha, em tempo real, as dinâmicas de criação que atravessam seu laboratório.</p>
+                    <p>Realizadas no LugarZinho, no 4º Distrito de Porto Alegre, as sessões configuram uma série de ocupações vídeo-coreográficas que investigam o encontro entre corpo, código e matéria sonora.</p>
+                    <p>A artista Roberta Savian Rosa conduz a pesquisa em vídeo-coreografia a partir da programação criativa como prática coreográfica expandida. Seus objetos digitais interativos operam como extensões do gesto, produzindo visualidades generativas em constante mutação.</p>
+                    <p>Em diálogo, Chico Machado ativa um campo sonoro híbrido, combinando objetos analógicos e sistemas abertos para construir texturas acústicas que respondem e tensionam o ambiente visual.</p>
+                    <p>Este laboratório performativo se organiza como um ecossistema sensível onde corpo, sinal e matéria se afetam mutuamente. A cada sessão, uma nova configuração emerge — instável, processual e irrepetível.</p>
+                    <p>Transmitidas ao vivo, as sessões expandem o espaço físico para o ambiente digital, convidando o público a acompanhar e interagir com o processo em fluxo contínuo. O que se compartilha não é uma obra finalizada, mas um campo de experimentação aberto, onde criação e recepção se contaminam.</p>
+                    
+                    <div className="mt-8 p-6 border border-[#00FF41]/30 bg-[#00FF41]/5 rounded-lg">
+                      <h3 className="font-mono text-sm text-[#00FF41] uppercase tracking-widest mb-4">Matriz do Processo</h3>
+                      <ul className="space-y-2 font-mono text-xs md:text-sm">
+                        <li><span className="text-white/50">Corpo & Creative Coding:</span> Roberta Savian Rosa</li>
+                        <li><span className="text-white/50">Objetos Low Tech & Arte Sonora:</span> Chico Machado</li>
+                        <li><span className="text-white/50">Sistemas:</span> Objetos Digitais Interativos & Código Aberto</li>
+                        <li><span className="text-white/50">Formato:</span> 8 sessões de 30 minutos (4 horas de material original)</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <a 
+                  href="https://www.youtube.com/@PROJETOVISTO/streams" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-transparent text-[#00FF41] border-2 border-[#00FF41] hover:bg-[#00FF41] hover:text-black transition-all duration-300 font-mono text-xs md:text-sm uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(0,255,65,0.4)] hover:shadow-[0_0_25px_rgba(0,255,65,0.8)]"
+                >
+                  <ExternalLink size={16} className="mr-3" />
+                  [ AGENDAR LEMBRETE NA TRANSMISSÃO ]
+                </a>
+              </div>
             </div>
           </div>
         </main>
@@ -2941,18 +2996,65 @@ function AppContent() {
         <main className="pt-32 pb-24 px-6 md:px-12">
           <button 
             onClick={() => handleNavigate('gallery')}
-            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-[#00FF41] hover:translate-x-[-4px] transition-transform"
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
-          <section className="mb-16">
-            <div className="h-[350px] sm:h-[300px] md:h-[250px] lg:h-[200px] flex items-start">
-              <ScramblePageTitle text="SONORA_VISTA" subText="PODCAST" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+          
+          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full max-w-7xl mx-auto">
+            {/* Left Side: Image */}
+            <div className="w-full md:w-[40%] flex justify-center items-center relative shrink-0">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
+              </div>
+              <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
+                <img 
+                  src="/espera.sonora_vista.webp" 
+                  alt="SONORA_VISTA PODCAST" 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
             </div>
-            <p className="font-sans opacity-60 max-w-2xl">Conversas, entrevistas e reflexões sobre arte e tecnologia.</p>
-          </section>
-          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
-            <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
+
+            {/* Right Side: Content */}
+            <div className="w-full md:w-[60%] flex flex-col">
+              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0">
+                <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter mb-4 text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                  SONORA_VISTA PODCAST
+                </h1>
+                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41]">
+                  Uma escuta dos bastidores — onde ideias, práticas e experimentações ganham voz.
+                </p>
+              </div>
+              
+              <div className="relative w-full h-[350px] md:h-[450px] overflow-hidden border border-white/10 rounded-xl bg-white/5 pointer-events-auto">
+                <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+                
+                <div className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8">
+                  <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed pb-8">
+                    <p>O SONORA_VISTA PODCAST é a extensão sonora do ecossistema criativo do V.I.S.T.O — um espaço de escuta onde processos, ideias e experimentações ganham corpo em forma de conversa.</p>
+                    <p>Inserido em um território de intersecção entre a presença do corpo e as texturas das tecnologias digitais e analógicas, o podcast acompanha a reabertura do atelier como um laboratório vivo. Cada episódio revela camadas do fazer artístico que atravessam a vídeo-coreografia, a arte generativa e a arte sonora, não como linguagens isoladas, mas como campos em constante contaminação.</p>
+                    <p>Mais do que registrar, o SONORA_VISTA documenta deslocamentos: o retorno ao espaço físico como gesto de memória e, simultaneamente, como plataforma de projeção para novas visualidades e modos de existência sensível.</p>
+                    <p>🎙️ Bastidores e processos criativos conduzem a narrativa — com os idealizadores e convidados compartilhando percursos, dúvidas, estratégias e fabulações que sustentam suas práticas.</p>
+                    <p>Entre o ensaio e a escuta, o íntimo e o técnico, o podcast se estabelece como um arquivo em movimento: um espaço onde o pensamento artístico acontece em tempo real.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <a 
+                  href="https://open.spotify.com/user/31lgtcyqypbtxgsvzrczwlndwt74?si=1e2e8f075d0841a1" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-transparent text-[#00FF41] border-2 border-[#00FF41] hover:bg-[#00FF41] hover:text-black transition-all duration-300 font-mono text-xs md:text-sm uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(0,255,65,0.4)] hover:shadow-[0_0_25px_rgba(0,255,65,0.8)]"
+                >
+                  <ExternalLink size={16} className="mr-3" />
+                  OUVIR NO SPOTIFY
+                </a>
+              </div>
+            </div>
           </div>
         </main>
       )}
