@@ -934,7 +934,7 @@ const ScrambleNavItem = ({ text, subText, onClick, isActive, as: Component = 'bu
       onClick={onClick}
       onMouseEnter={handleMouseOver}
       style={{ fontFamily: "'Courier New', Courier, monospace" }}
-      className={`font-mono text-[10px] sm:text-xs md:text-sm lg:text-base uppercase tracking-wider md:tracking-widest px-1 md:px-2 xl:px-3 py-1.5 md:py-2 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap cursor-pointer flex flex-col items-center justify-center leading-tight ${isActive ? 'text-accent' : 'text-white'} ${className || ''}`}
+      className={`font-mono text-[10px] sm:text-xs md:text-sm lg:text-base uppercase tracking-wider md:tracking-widest px-2 md:px-4 xl:px-6 py-2 md:py-3 rounded-xl transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] whitespace-nowrap cursor-pointer flex flex-col items-center justify-center leading-tight ${isActive ? 'text-accent' : 'text-white'} ${className || ''}`}
       role={Component !== 'button' ? 'button' : undefined}
       tabIndex={Component !== 'button' ? 0 : undefined}
       onKeyDown={Component !== 'button' ? (e: any) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
@@ -1101,11 +1101,11 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
     className="fixed top-0 left-0 w-full z-50 transition-colors duration-300 border-b border-white/5"
   >
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex justify-between items-center w-full">
-      <div className="pointer-events-auto flex items-center gap-4 xl:gap-8 flex-1 min-w-0">
+      <div className="pointer-events-auto flex items-center gap-8 xl:gap-16 flex-1 min-w-0">
         <div className="shrink-0">
           <ScrambleTitle onClick={() => setView('gallery')} />
         </div>
-        <nav className="hidden sm:flex items-center gap-1 md:gap-2 lg:gap-3 xl:gap-4 flex-nowrap overflow-x-auto hide-scrollbar py-4 -my-4 px-4 -mx-4">
+        <nav className="hidden sm:flex items-center gap-2 md:gap-4 lg:gap-6 xl:gap-8 flex-nowrap overflow-x-auto hide-scrollbar py-4 -my-4 px-4 -mx-4">
           <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
           <ScrambleNavItem text="Workshops" onClick={() => currentView === 'courses' ? setView('gallery') : setView('courses')} isActive={currentView === 'courses'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
           <ScrambleNavItem text="AO VIVO" onClick={() => currentView === 'live' ? setView('gallery') : setView('live')} isActive={currentView === 'live'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
