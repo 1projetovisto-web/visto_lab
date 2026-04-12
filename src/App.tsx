@@ -947,7 +947,7 @@ const ScrambleNavItem = ({ text, subText, onClick, isActive, as: Component = 'bu
   );
 };
 
-const ScramblePageTitle = ({ text, subText, className }: { text: string, subText?: string, className?: string }) => {
+const ScramblePageTitle = ({ text, subText, className, noMargin = false }: { text: string, subText?: string, className?: string, noMargin?: boolean }) => {
   const [displayText, setDisplayText] = useState(text);
   const [displaySubText, setDisplaySubText] = useState(subText || '');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -997,7 +997,7 @@ const ScramblePageTitle = ({ text, subText, className }: { text: string, subText
   }, [text, subText]);
 
   return (
-    <div className="my-8 py-4">
+    <div className={noMargin ? "" : "my-8 py-4"}>
       <h2 
         onMouseEnter={handleMouseOver}
         className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-4 py-2 -ml-4 rounded-2xl inline-flex flex-col`}
@@ -2219,10 +2219,10 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
   return (
     <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full">
       {/* Left Side: 40% */}
-      <div className="w-full md:w-[40%] flex justify-center items-center relative shrink-0">
+      <div className="w-full md:w-[40%] flex justify-center items-start relative shrink-0">
         {/* Glow Background */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#ff00ff]/10 blur-3xl" />
+        <div className="absolute top-0 left-0 right-0 bottom-0 flex items-start justify-center pointer-events-none">
+          <div className="mt-0 w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#ff00ff]/10 blur-3xl" />
         </div>
         
         {/* Image */}
@@ -2238,9 +2238,10 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
 
       {/* Right Side: 60% */}
       <div className="w-full md:w-[60%] flex flex-col">
-        <div className="h-[140px] sm:h-[160px] md:h-[200px] lg:h-[240px] mb-4 md:mb-6 flex items-start justify-center md:justify-start shrink-0">
+        <div className="mb-8 md:mb-12 flex items-start justify-center md:justify-start shrink-0">
           <ScramblePageTitle 
             text={artist.name} 
+            noMargin={true}
             className="font-archivo text-4xl md:text-6xl lg:text-[5rem] leading-none uppercase text-white text-center md:text-left drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
           />
         </div>
@@ -3095,4 +3096,3 @@ function AppContent() {
     </div>
   );
 }
-
