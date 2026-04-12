@@ -2971,8 +2971,8 @@ function AppContent() {
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
-          <section className="mb-16">
-            <ScramblePageTitle text="ARTISTAS" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+          <section className="mb-20">
+            <ScramblePageTitle text="ARTISTAS" className="font-display text-7xl md:text-8xl lg:text-9xl font-bold uppercase tracking-tighter mb-8" />
           </section>
           <ArtistsView />
         </main>
