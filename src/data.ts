@@ -48,7 +48,7 @@ export const COURSES: Course[] = [
   {
     id: 'c2',
     title: 'OFICINA 02 _ Improvisação Coreográfica Intermediada por Computador',
-    instructor: 'com Roberta Savian Rosa',
+    instructor: 'com Roberta Savian',
     description: 'O que acontece quando o seu movimento deixa de ser apenas dança e passa a ser dado? Nesta oficina, vamos explorar exatamente essa fronteira: a interseção entre o corpo que improvisa e a máquina que escuta, processa e responde. Usando ferramentas de código aberto como p5.js e ml5.js, você vai aprender a criar situações coreográficas em que imagem e som respondem ao seu movimento em tempo real. Não é preciso ter experiência com programação para começar — a oficina parte do zero na relação com o código. O que é necessário é a disposição para experimentar, errar e descobrir novas perguntas sobre o que pode ser uma cena.\nPercurso da oficina:\n10 unidades temáticas.\nEncontros ao vivo e dois turnos práticos no sábado.\nEstudos dirigidos, leituras e vídeos para aprofundar a relação corpo/tecnologia. Atenção: acompanhe a trilha de aprendizagem e participe das atividades no AVA — sua interação aqui é parte da experiência e conta para a certificação.',
     thumbnailUrl: '/oficina2_capa.webp',
     classroomUrl: 'https://classroom.google.com/c/Njg5NjA1MDYyNzc5?cjc=sv7tkzo',
@@ -81,7 +81,7 @@ export const ARTWORKS: Artwork[] = [
     title: 'VST_0 CAM',
     artist: 'V.I.S.T.O_Ocupações Vídeo_Coreográficas',
     year: '2024',
-    description: 'Dispositivo de presença intermediada desenvolvido por Vj Ada Error (Roberta Savian Rosa). Explora a intersecção entre corpo e imagem em tempo real. Licença: CreativeCommons Attribution NonCommercial ShareAlike (BY-NC-SA 3.0).',
+    description: 'Dispositivo de presença intermediada desenvolvido por Vj Ada Error (Roberta Savian). Explora a intersecção entre corpo e imagem em tempo real. Licença: CreativeCommons Attribution NonCommercial ShareAlike (BY-NC-SA 3.0).',
     imageUrl: 'https://openprocessing.org/sketch/2891931/thumbnail/',
     category: 'Vídeo-Coreografia',
     medium: 'OpenProcessing / p5.js',
@@ -90,7 +90,7 @@ export const ARTWORKS: Artwork[] = [
   {
     id: '2',
     title: 'PANOPTICON_01',
-    artist: 'VJ Ada Error (Roberta Savian Rosa)',
+    artist: 'VJ Ada Error (Roberta Savian)',
     year: '2024',
     description: 'Exploração visual sobre vigilância e percepção digital. Desenvolvido para o ecossistema V.I.S.TO.',
     imageUrl: 'https://openprocessing.org/sketch/2894881/thumbnail/',
@@ -101,7 +101,7 @@ export const ARTWORKS: Artwork[] = [
   {
     id: '3',
     title: 'Text mirror',
-    artist: 'Core0gam3 (vj Ada Error _RSR)',
+    artist: 'Core0gam3 (vj Ada Error - Roberta Savian)',
     year: '2024',
     description: 'Espelho tipográfico que processa a imagem da câmera em caracteres ASCII. Licença: CreativeCommons Attribution NonCommercial ShareAlike (BY-NC-SA 3.0).',
     imageUrl: 'https://openprocessing.org/sketch/2559503/thumbnail/',
