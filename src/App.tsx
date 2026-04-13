@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink } from 'lucide-react';
+import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink, Youtube } from 'lucide-react';
 import * as Tone from 'tone';
 import { ARTWORKS, type Artwork, COURSES, type Course, type Lesson } from './data';
 import { 
@@ -997,13 +997,22 @@ const ScramblePageTitle = ({ text, subText, className, noMargin = false }: { tex
   }, [text, subText]);
 
   return (
-    <div className={noMargin ? "" : "my-8 py-4"}>
+    <div className={`${noMargin ? "" : "my-8 py-4"} min-h-[1.2em] flex items-end max-w-full`}>
       <h2 
         onMouseEnter={handleMouseOver}
-        className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_15px_rgba(204,255,0,0.8)] px-4 py-2 -ml-4 rounded-2xl inline-flex flex-col`}
+        className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_20px_rgba(204,255,0,0.9)] px-6 py-3 -ml-6 rounded-2xl inline-flex flex-col leading-none relative max-w-full`}
       >
-        <span>{displayText}</span>
-        {subText && <span className="text-2xl md:text-3xl lg:text-4xl opacity-80 mt-2 font-mono tracking-widest">{displaySubText}</span>}
+        {/* Ghost Layer: Reserves space and prevents jitter */}
+        <div className="opacity-0 pointer-events-none select-none invisible max-w-full" aria-hidden="true">
+          <span className="block whitespace-nowrap">{text}</span>
+          {subText && <span className="text-2xl md:text-3xl lg:text-4xl mt-2 font-mono tracking-widest block whitespace-nowrap">{subText}</span>}
+        </div>
+
+        {/* Scramble Layer: Absolute positioned on top */}
+        <div className="absolute inset-0 px-6 py-3 flex flex-col justify-end pointer-events-none max-w-full">
+          <span className="block whitespace-nowrap">{displayText}</span>
+          {subText && <span className="text-2xl md:text-3xl lg:text-4xl opacity-80 mt-2 font-mono tracking-widest block whitespace-nowrap">{displaySubText}</span>}
+        </div>
       </h2>
     </div>
   );
@@ -2242,7 +2251,7 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
           <ScramblePageTitle 
             text={artist.name} 
             noMargin={true}
-            className="font-archivo text-4xl md:text-6xl lg:text-[5rem] leading-none uppercase text-white text-center md:text-left drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
+            className="font-archivo text-[clamp(1.5rem,4.5vw,4rem)] leading-none uppercase text-white text-center md:text-left drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
           />
         </div>
         
@@ -2860,7 +2869,7 @@ function AppContent() {
               text="WORKSHOPS"
               className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-6"
             />
-            <p className="font-sans opacity-60 max-w-2xl text-lg leading-relaxed">Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia.</p>
+            <p className="font-sans text-[#00FF41] max-w-2xl text-lg leading-relaxed">Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia.</p>
           </section>
 
           {!user && (
@@ -2892,10 +2901,17 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           
-          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full max-w-7xl mx-auto">
+          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end">
+            <ScramblePageTitle 
+              text="AO VIVO — SESSÕES DE CASA ABERTA" 
+              className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            />
+          </section>
+
+          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start w-full max-w-7xl mx-auto">
             {/* Left Side: Image */}
-            <div className="w-full md:w-[40%] flex justify-center items-center relative shrink-0">
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-full md:w-[40%] flex justify-center items-start relative shrink-0">
+              <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
                 <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
               </div>
               <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
@@ -2910,12 +2926,8 @@ function AppContent() {
 
             {/* Right Side: Content */}
             <div className="w-full md:w-[60%] flex flex-col">
-              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0 min-h-[180px]">
-                <ScramblePageTitle 
-                  text="AO VIVO — SESSÕES DE CASA ABERTA" 
-                  className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                />
-                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41] mt-2">
+              <div className="mb-8 md:mb-12 flex flex-col items-start justify-start shrink-0">
+                <p className="font-sans text-lg md:text-xl text-[#00FF41]">
                   Um laboratório em fluxo contínuo onde corpo, código e som se atravessam. Acompanhe processos em tempo real e acesse a criação no instante em que ela acontece.
                 </p>
               </div>
@@ -2972,7 +2984,7 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-20">
-            <ScramblePageTitle text="ARTISTAS" className="font-display text-7xl md:text-8xl lg:text-9xl font-bold uppercase tracking-tighter mb-8" />
+            <ScramblePageTitle text="ARTISTAS" className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-8" />
           </section>
           <ArtistsView />
         </main>
@@ -2987,8 +2999,8 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           <section className="mb-16">
-            <ScramblePageTitle text="SonorⒶ" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
-            <p className="font-sans opacity-60 max-w-2xl">Experimentações sonoras e paisagens auditivas.</p>
+            <ScramblePageTitle text="SonorⒶ" className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans text-[#00FF41] max-w-2xl text-lg">Experimentações sonoras e paisagens auditivas.</p>
           </section>
           <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
             <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
@@ -3005,10 +3017,17 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           
-          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full max-w-7xl mx-auto">
+          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end">
+            <ScramblePageTitle 
+              text="SONORA_VISTA PODCAST" 
+              className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            />
+          </section>
+
+          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start w-full max-w-7xl mx-auto">
             {/* Left Side: Image */}
-            <div className="w-full md:w-[40%] flex justify-center items-center relative shrink-0">
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-full md:w-[40%] flex flex-col items-center md:items-start relative shrink-0">
+              <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
                 <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
               </div>
               <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
@@ -3019,16 +3038,23 @@ function AppContent() {
                   referrerPolicy="no-referrer"
                 />
               </div>
+
+              {/* New Animated WebP */}
+              <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10 mt-8">
+                <img 
+                  src="/loopsonora_vista.webp"
+                  alt="Loop Sonora Vista"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
             </div>
 
             {/* Right Side: Content */}
             <div className="w-full md:w-[60%] flex flex-col">
-              <div className="mb-6 flex flex-col items-start justify-center md:justify-start shrink-0 min-h-[220px] md:min-h-[180px]">
-                <ScramblePageTitle 
-                  text="SONORA_VISTA PODCAST" 
-                  className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] h-[140px] md:h-[120px] lg:h-[140px] justify-center"
-                />
-                <p className="font-sans text-lg md:text-xl opacity-80 text-[#00FF41] mt-2">
+              <div className="mb-8 md:mb-12 flex flex-col items-start justify-start shrink-0">
+                <p className="font-sans text-lg md:text-xl text-[#00FF41]">
                   Uma escuta dos bastidores — onde ideias, práticas e experimentações ganham voz.
                 </p>
               </div>
@@ -3057,6 +3083,26 @@ function AppContent() {
                 >
                   <ExternalLink size={16} className="mr-3" />
                   OUVIR NO SPOTIFY
+                </a>
+              </div>
+
+              <div className="mt-8">
+                <a 
+                  href="https://youtube.com/playlist?list=PLrW-jjiEJDBNaeuWH2ThyX-HJU7WOe8bl&si=aOjXLiCq6xFn7Qt9"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-col items-start p-8 bg-transparent text-[#00FF41] border-2 border-[#00FF41] hover:bg-[#00FF41] hover:text-black transition-all duration-300 font-mono shadow-[0_0_15px_rgba(0,255,65,0.4)] hover:shadow-[0_0_25px_rgba(0,255,65,0.8)] group"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <Youtube size={24} />
+                    <h3 className="font-display text-xl md:text-2xl font-bold uppercase tracking-tighter">Ouça no YouTube</h3>
+                  </div>
+                  <p className="font-sans text-sm opacity-80 mb-6 leading-relaxed normal-case tracking-normal font-normal">
+                    Acesse a playlist completa do podcast e acompanhe os episódios em vídeo.
+                  </p>
+                  <span className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest font-bold border-b border-current pb-1 group-hover:border-black transition-colors">
+                    Abrir playlist <ArrowUpRight size={14} />
+                  </span>
                 </a>
               </div>
             </div>
