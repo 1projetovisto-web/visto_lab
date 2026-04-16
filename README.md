@@ -16,7 +16,7 @@
 O **VISTO_LAB** transcende o desenvolvimento web tradicional. Ele nasce da necessidade de criar interfaces que respeitem a **clareza cognitiva** e a **presença sensível**. Nossa missão é materializar conceitos de informática na educação através de uma estética de vanguarda, onde o código não é apenas uma ferramenta, mas o próprio suporte da coreografia digital.
 
 ### 👤 Concepção e Coordenação
-* **Idealização e Pesquisa:** Dra. Roberta Savian da Rosa
+* **Idealização e Pesquisa:** Dra. Roberta Savian Rosa
 * **Instituição Associada:** Pesquisa desenvolvida no âmbito da Informática na Educação e Artes Somáticas, com apoio do Pró-Cultura-SEDAC/RS.
 * **Foco:** Interação humano-computador, videocoreografia e autonomia digital.
 
