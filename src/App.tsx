@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink, Youtube } from 'lucide-react';
+import { motion, AnimatePresence, useScroll, useTransform, useDragControls } from 'framer-motion';
+import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink, Youtube, MousePointer2 } from 'lucide-react';
 import * as Tone from 'tone';
+import { useSomaticMouse } from './hooks/useSomaticMouse';
 import { ARTWORKS, type Artwork, COURSES, type Course, type Lesson } from './data';
 import { 
   auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, 
@@ -10,6 +11,110 @@ import {
 } from './firebase';
 
 type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin' | 'privacidade' | 'termos';
+
+// --- INTERACTIVE SYSTEM ---
+interface InteractiveContextType {
+  mousePos: React.MutableRefObject<{ x: number; y: number }>;
+  isSoundEnabled: boolean;
+  setIsSoundEnabled: (enabled: boolean) => void;
+  intensity: 'HIGH' | 'LOW' | 'OFF';
+  setIntensity: (intensity: 'HIGH' | 'LOW' | 'OFF') => void;
+  playInteractionSound: (type?: 'hover' | 'click' | 'success') => void;
+}
+
+const InteractiveContext = React.createContext<InteractiveContextType | null>(null);
+
+export const useInteractiveSystem = () => {
+  const context = React.useContext(InteractiveContext);
+  if (!context) throw new Error("useInteractiveSystem must be used within InteractiveProvider");
+  return context;
+};
+
+const InteractiveProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const mousePos = useSomaticMouse(0.08); // Sistema Nervoso: Inércia Somática
+  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  const [intensity, setIntensity] = useState<'HIGH' | 'LOW' | 'OFF'>('LOW');
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Audio Refs
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      setIsMobile(mobile);
+      if (mobile) setIntensity('OFF');
+    };
+    checkMobile();
+  }, []);
+
+  const initAudio = () => {
+    if (audioCtxRef.current) return;
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    
+    const ctx = new AudioContext();
+    audioCtxRef.current = ctx;
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = isSoundEnabled ? 0.3 : 0;
+    masterGain.connect(ctx.destination);
+    masterGainRef.current = masterGain;
+  };
+
+  useEffect(() => {
+    if (isSoundEnabled) initAudio();
+    if (masterGainRef.current) {
+      masterGainRef.current.gain.setTargetAtTime(isSoundEnabled ? 0.3 : 0, audioCtxRef.current!.currentTime, 0.1);
+    }
+  }, [isSoundEnabled]);
+
+  const playInteractionSound = (type: 'hover' | 'click' | 'success' = 'hover') => {
+    if (!isSoundEnabled || !audioCtxRef.current || !masterGainRef.current) return;
+    
+    const ctx = audioCtxRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(masterGainRef.current);
+    
+    const now = ctx.currentTime;
+    
+    if (type === 'hover') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880 + Math.random() * 440, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.1);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.05, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else if (type === 'click') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.05);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.1, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+  };
+
+  return (
+    <InteractiveContext.Provider value={{ 
+      mousePos, 
+      isSoundEnabled, 
+      setIsSoundEnabled, 
+      intensity, 
+      setIntensity,
+      playInteractionSound 
+    }}>
+      {children}
+    </InteractiveContext.Provider>
+  );
+};
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -106,19 +211,30 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
   
   // Drone state refs
   const droneOscRef = useRef<OscillatorNode | null>(null);
+  const droneOsc2Ref = useRef<OscillatorNode | null>(null);
   const droneFilterRef = useRef<BiquadFilterNode | null>(null);
   const droneGainRef = useRef<GainNode | null>(null);
+  const lfoRef = useRef<OscillatorNode | null>(null);
 
   const isAudioInitialized = useRef(false);
+  
+  // Somatic Breathing State
+  const breathingPhaseRef = useRef(0);
   
   // Interaction tracking
   const smoothedSpeedRef = useRef(0);
   const lastMousePosRef = useRef({ x: -1000, y: -1000 });
   
+  // High-Precision Audio Scheduler Refs
+  const schedulerTimerRef = useRef<number | null>(null);
+  const lookahead = 0.1; // How far ahead to schedule (seconds)
+  const scheduleInterval = 25; // How often to check for new notes (ms)
+  
   // Sequencer state
   const nextNoteTimeRef = useRef(0);
   const currentStepRef = useRef(0);
   const tempoRef = useRef(90);
+  const isHoveringRef = useRef(false);
   const previousConnectionsRef = useRef<Set<string>>(new Set());
   const currentMarkovStateRef = useRef(3); // Start at index 3 (E4)
 
@@ -173,35 +289,49 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
 
     // --- DRONE LAYER (Ambient Background) ---
     const droneOsc = ctx.createOscillator();
-    const droneOsc2 = ctx.createOscillator(); // Segundo oscilador para efeito "Chorus" etéreo
+    const droneOsc2 = ctx.createOscillator(); 
     const droneFilter = ctx.createBiquadFilter();
     const droneGain = ctx.createGain();
+    const lfo = ctx.createOscillator(); // Low Frequency Oscillator for "Breathing"
+    const lfoGain = ctx.createGain();
 
-    droneOsc.type = 'sine'; // Som puro e suave
-    droneOsc.frequency.value = 150; // Frequência base
+    droneOsc.type = 'sine';
+    droneOsc.frequency.value = 73.42; // D2 - Grounding frequency
     
     droneOsc2.type = 'sine';
-    droneOsc2.frequency.value = 152; // Levemente desafinado para criar batimento (beating) espacial
+    droneOsc2.frequency.value = 73.80; // Slight detune for somatic beating
 
     droneFilter.type = 'lowpass';
-    droneFilter.frequency.value = 800; // Filtro base
+    droneFilter.frequency.value = 400; 
 
-    droneGain.gain.value = 0; // Começa mudo
+    // LFO: The "Breath" (0.1Hz = 10 second breath cycle)
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.12; 
+    lfoGain.gain.value = 200; // Modulation depth (affects filter cutoff)
+    
+    lfo.connect(lfoGain);
+    lfoGain.connect(droneFilter.frequency); // LFO modulates the filter
+
+    droneGain.gain.value = 0.1; // Base ambient volume (autonomous)
 
     droneOsc.connect(droneFilter);
     droneOsc2.connect(droneFilter);
     droneFilter.connect(droneGain);
-    droneGain.connect(masterGain); // Conecta ao master (antes do compressor)
+    droneGain.connect(masterGain); 
+    
     if (convolverNodeRef.current) {
-        droneGain.connect(convolverNodeRef.current); // Envia o drone para a caverna também
+        droneGain.connect(convolverNodeRef.current);
     }
 
+    lfo.start();
     droneOsc.start();
     droneOsc2.start();
 
     droneOscRef.current = droneOsc;
+    droneOsc2Ref.current = droneOsc2;
     droneFilterRef.current = droneFilter;
     droneGainRef.current = droneGain;
+    lfoRef.current = lfo;
   };
 
   const playPulse = (speed: number, type: 'kick' | 'tick' | 'bass', time: number) => {
@@ -330,6 +460,68 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
     osc.stop(ctx.currentTime + 1.5);
   };
 
+  // --- AUDIO SCHEDULER (The "Independent Clock") ---
+  useEffect(() => {
+    const scheduleNotes = () => {
+      if (!isAudioInitialized.current || !audioCtxRef.current || audioCtxRef.current.state !== 'running') return;
+      
+      const ctx = audioCtxRef.current;
+      const now = ctx.currentTime;
+
+      // Initialize or catch up if the clock is too far behind
+      if (nextNoteTimeRef.current < now) {
+        nextNoteTimeRef.current = now + 0.05;
+      }
+
+      // Schedule notes that fall within the lookahead window
+      while (nextNoteTimeRef.current < now + lookahead) {
+        const speed = Math.min(smoothedSpeedRef.current, 50);
+        const isUserActive = isHoveringRef.current && speed > 2;
+        
+        // Dynamic tempo logic
+        const targetTempo = isUserActive ? (70 + (speed / 50) * 90) : 40;
+        tempoRef.current = tempoRef.current * 0.9 + targetTempo * 0.1;
+        
+        const secondsPerBeat = 60.0 / tempoRef.current;
+        const secondsPerSixteenth = secondsPerBeat / 4;
+        
+        const step = currentStepRef.current;
+        let playKick = false;
+        let playTick = false;
+        let playBass = false;
+        
+        if (isUserActive) {
+          if (speed < 20) {
+             if (step === 0 || step === 8) playKick = true;
+             if (step === 4 || step === 12) playTick = true;
+          } else {
+             if (step === 0 || step === 3 || step === 8 || step === 11) playKick = true;
+             if (step % 2 === 1) playTick = true;
+          }
+        } else {
+          if (step === 0) playKick = true;
+          if (step === 8) playBass = true;
+        }
+
+        const scheduleTime = nextNoteTimeRef.current;
+        if (playKick) playPulse(speed, 'kick', scheduleTime);
+        if (playTick) playPulse(speed, 'tick', scheduleTime);
+        if (playBass) playPulse(speed, 'bass', scheduleTime);
+        
+        nextNoteTimeRef.current += secondsPerSixteenth;
+        currentStepRef.current = (step + 1) % 16;
+      }
+    };
+
+    if (isSoundEnabled) {
+      schedulerTimerRef.current = window.setInterval(scheduleNotes, scheduleInterval);
+    }
+
+    return () => {
+      if (schedulerTimerRef.current) clearInterval(schedulerTimerRef.current);
+    };
+  }, [isSoundEnabled]); // Re-run if sound enabled state changes
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -340,6 +532,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
     let height = canvas.height = canvas.offsetHeight;
     
     class Particle {
+      id: string;
       x: number;
       y: number;
       vx: number;
@@ -350,6 +543,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
       maxLife: number;
 
       constructor(x?: number, y?: number, isTemporary: boolean = false) {
+        this.id = Math.random().toString(36).substring(2, 9);
         this.x = x ?? Math.random() * width;
         this.y = y ?? Math.random() * height;
         this.vx = (Math.random() - 0.5) * 0.8;
@@ -390,6 +584,10 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
         if (this.y < 0) this.y = height;
         if (this.y > height) this.y = 0;
 
+        // Somatic Breathing Expansion
+        const breathScale = 1 + (breathingPhaseRef.current * 0.2);
+        this.radius = this.baseRadius * breathScale;
+
         if (this.maxLife !== Infinity) {
           this.life--;
         }
@@ -400,13 +598,28 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
         
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 253, 231, ${opacity})`; // Ocre Suave core
+        ctx.fillStyle = `rgba(255, 253, 231, ${opacity})`;
         ctx.shadowBlur = 15;
-        ctx.shadowColor = '#CCFF00'; // Accent color glow
+        ctx.shadowColor = '#CCFF00';
         ctx.fill();
         ctx.shadowBlur = 0;
       }
     }
+
+    // --- SPATIAL PARTITIONING (Optimization) ---
+    const gridSize = 120; // Match connection distance
+    let grid: Map<string, Particle[]> = new Map();
+
+    const updateGrid = (particles: Particle[]) => {
+      grid.clear();
+      for (const p of particles) {
+        const gx = Math.floor(p.x / gridSize);
+        const gy = Math.floor(p.y / gridSize);
+        const key = `${gx},${gy}`;
+        if (!grid.has(key)) grid.set(key, []);
+        grid.get(key)!.push(p);
+      }
+    };
 
     let particles: Particle[] = [];
     const initParticles = () => {
@@ -421,66 +634,14 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
     let animationFrameId: number;
     let mouseX = -1000;
     let mouseY = -1000;
-    let isHovering = false;
 
     const draw = () => {
       animationFrameId = requestAnimationFrame(draw);
 
-      // --- AUDIO LOGIC: Sequencer ---
-      try {
-        if (isHovering && isAudioInitialized.current && audioCtxRef.current?.state === 'running') {
-          const now = audioCtxRef.current.currentTime;
-          
-          // Initialize nextNoteTime if it's 0 or too far in the past
-          if (nextNoteTimeRef.current === 0 || nextNoteTimeRef.current < now) {
-            nextNoteTimeRef.current = now + 0.05;
-          }
-
-          // Lookahead scheduling (schedule notes slightly ahead of time)
-          while (nextNoteTimeRef.current < now + 0.1) {
-            const speed = Math.min(smoothedSpeedRef.current, 50);
-            
-            // Dynamic tempo: 70 BPM (idle) to 160 BPM (fast)
-            const targetTempo = 70 + (speed / 50) * 90;
-            tempoRef.current = tempoRef.current * 0.95 + targetTempo * 0.05;
-            
-            const secondsPerBeat = 60.0 / tempoRef.current;
-            const secondsPerSixteenth = secondsPerBeat / 4;
-            
-            const step = currentStepRef.current;
-            let playKick = false;
-            let playTick = false;
-            let playBass = false;
-            
-            // Rhythmic variations based on speed
-            if (speed < 5) {
-               // Very slow: Ambient heartbeat
-               if (step === 0) playKick = true;
-               if (step === 8) playBass = true;
-            } else if (speed < 20) {
-               // Medium: Steady groove
-               if (step === 0 || step === 8) playKick = true;
-               if (step === 4 || step === 12) playTick = true;
-               if (step === 10) playBass = true; // Syncopated bass
-            } else {
-               // Fast: Urgent, syncopated techno/glitch feel
-               if (step === 0 || step === 3 || step === 8 || step === 11) playKick = true;
-               if (step % 2 === 1) playTick = true;
-               if (step === 6 || step === 14) playBass = true;
-            }
-
-            const scheduleTime = nextNoteTimeRef.current;
-            if (playKick) playPulse(speed, 'kick', scheduleTime);
-            if (playTick) playPulse(speed, 'tick', scheduleTime);
-            if (playBass) playPulse(speed, 'bass', scheduleTime);
-            
-            nextNoteTimeRef.current += secondsPerSixteenth;
-            currentStepRef.current = (step + 1) % 16;
-          }
-        }
-      } catch (e) {
-        console.error("Audio sequencer error:", e);
-      }
+      // --- AUDIO LOGIC: Removed from here (Now in independent scheduler) ---
+      breathingPhaseRef.current = Math.sin(Date.now() * 0.001 * 0.12 * Math.PI * 2);
+      
+      // Draw loop continues...
 
       // Trail effect
       ctx.globalCompositeOperation = 'source-over';
@@ -490,12 +651,15 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
       // Smooth merging
       ctx.globalCompositeOperation = 'screen';
 
+      // Update grid for this frame
+      updateGrid(particles);
+      
       let currentConnections = new Set<string>();
 
       // Update and draw particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        p.update(mouseX, mouseY, isHovering);
+        p.update(mouseX, mouseY, isHoveringRef.current);
         p.draw(ctx);
 
         if (p.life <= 0) {
@@ -503,33 +667,49 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
           continue;
         }
 
-        // Constellation connections
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j];
-          const dx = p.x - p2.x;
-          const dy = p.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+        // --- OPTIMIZED CONNECTIONS (Grid-based) ---
+        const gx = Math.floor(p.x / gridSize);
+        const gy = Math.floor(p.y / gridSize);
 
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            const opacity = (1 - dist / 120) * 0.4;
-            ctx.strokeStyle = `rgba(204, 255, 0, ${opacity * 0.8})`; // Accent color tint
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
+        // Check current cell and 8 neighbors
+        for (let nx = gx - 1; nx <= gx + 1; nx++) {
+          for (let ny = gy - 1; ny <= gy + 1; ny++) {
+            const key = `${nx},${ny}`;
+            const neighbors = grid.get(key);
+            if (!neighbors) continue;
 
-            // --- AUDIO LOGIC: Connection Notes ---
-            const pairId = `${i}-${j}`;
-            currentConnections.add(pairId);
+            for (const p2 of neighbors) {
+              if (p === p2) continue; // Skip self
+              
+              const dx = p.x - p2.x;
+              const dy = p.y - p2.y;
+              const distSq = dx * dx + dy * dy;
+              const maxDist = 120;
+              const maxDistSq = maxDist * maxDist;
 
-            // Check if this is a NEW connection near the mouse
-            if (isHovering && isAudioInitialized.current && audioCtxRef.current?.state === 'running') {
-              const distToMouse = Math.sqrt(Math.pow(p.x - mouseX, 2) + Math.pow(p.y - mouseY, 2));
-              if (distToMouse < 150 && !previousConnectionsRef.current.has(pairId)) {
-                // Throttle note generation slightly to avoid overwhelming
-                if (Math.random() > 0.5) {
-                  playPentatonicNote(opacity);
+              if (distSq < maxDistSq) {
+                const dist = Math.sqrt(distSq);
+                const pairId = p.id < p2.id ? `${p.id}-${p2.id}` : `${p2.id}-${p.id}`; // Stable unique ID for pair
+                
+                if (currentConnections.has(pairId)) continue;
+                currentConnections.add(pairId);
+
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p2.x, p2.y);
+                const opacity = (1 - dist / maxDist) * 0.4;
+                ctx.strokeStyle = `rgba(204, 255, 0, ${opacity * 0.8})`;
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                // --- AUDIO LOGIC: Connection Notes ---
+                if (isHoveringRef.current && isAudioInitialized.current && audioCtxRef.current?.state === 'running') {
+                  const distToMouse = Math.sqrt(Math.pow(p.x - mouseX, 2) + Math.pow(p.y - mouseY, 2));
+                  if (distToMouse < 150 && !previousConnectionsRef.current.has(pairId)) {
+                    if (Math.random() > 0.5) {
+                      playPentatonicNote(opacity);
+                    }
+                  }
                 }
               }
             }
@@ -566,7 +746,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
       const newMouseY = clientY - rect.top;
       
       // Calculate speed
-      if (isHovering) {
+      if (isHoveringRef.current) {
         const dx = newMouseX - lastMousePosRef.current.x;
         const dy = newMouseY - lastMousePosRef.current.y;
         const speed = Math.sqrt(dx*dx + dy*dy);
@@ -576,7 +756,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
       mouseX = newMouseX;
       mouseY = newMouseY;
       lastMousePosRef.current = { x: mouseX, y: mouseY };
-      isHovering = true;
+      isHoveringRef.current = true;
 
       // Update Audio
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
@@ -604,7 +784,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
         droneFilterRef.current.frequency.setTargetAtTime(targetCutoff, now, 0.5);
 
         // Fade in volume when hovering (suave e atmosférico)
-        droneGainRef.current.gain.setTargetAtTime(0.15, now, 0.8);
+        droneGainRef.current.gain.setTargetAtTime(0.25, now, 0.8);
       }
       
       if (target.closest('h1') || target.closest('input')) {
@@ -632,7 +812,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
     };
 
     const handleInteractionEnd = () => {
-      isHovering = false;
+      isHoveringRef.current = false;
       mouseX = -1000;
       mouseY = -1000;
 
@@ -699,20 +879,24 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
   );
 };
 
-const SCRAMBLE_CHARS = '!<>-_\\\\/[]{}—=+*^?#01';
+const SCRAMBLE_CHARS = '!<>-_\\/[]{}—=+*^?#01';
 
-const ScrambleChar: React.FC<{ 
+const ScrambleChar = React.memo(({ 
+  char, 
+  delay, 
+  isHighlighted 
+}: { 
   char: string; 
   delay: number; 
   isHighlighted: boolean; 
-}> = ({ char, delay, isHighlighted }) => {
+}) => {
   const [displayChar, setDisplayChar] = useState(char === ' ' ? ' ' : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]);
 
   useEffect(() => {
     if (char === ' ') return;
 
     let iteration = 0;
-    const maxIterations = delay * 20; // 50ms interval = 20 iterations per second
+    const maxIterations = Math.floor(delay * 12);
 
     const scrambleInterval = setInterval(() => {
       setDisplayChar(SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]);
@@ -722,62 +906,35 @@ const ScrambleChar: React.FC<{
         clearInterval(scrambleInterval);
         setDisplayChar(char);
       }
-    }, 50);
+    }, 60);
 
     return () => clearInterval(scrambleInterval);
   }, [char, delay]);
 
   return (
     <motion.span
-      className={`relative inline-block cursor-default group ${isHighlighted ? 'text-accent italic' : 'text-white'} transition-all duration-300 ease-in-out`}
-      initial={{ opacity: 0, filter: 'blur(10px)' }}
+      className={`relative inline-block cursor-default ${isHighlighted ? 'text-accent italic' : 'text-white/80'}`}
+      initial={{ opacity: 0, filter: 'blur(8px)' }}
       animate={{ opacity: 1, filter: 'blur(0px)' }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.8, delay: delay * 0.1 }}
       whileHover={{ 
-        scale: 1.8,
-        z: 250,
+        scale: 1.1,
         color: '#CCFF00',
-        textShadow: '0 20px 40px rgba(204, 255, 0, 0.4), 0 -10px 20px rgba(255, 255, 255, 0.1)',
+        x: (Math.random() - 0.5) * 5, // Subtle magnetic jitter
+        y: (Math.random() - 0.5) * 5,
+        filter: 'drop-shadow(0 0 8px rgba(204, 255, 0, 0.6))',
         transition: { 
           type: 'spring', 
-          stiffness: 500, 
-          damping: 15 
+          stiffness: 200, 
+          damping: 10 
         }
       }}
-      style={{ transformStyle: 'preserve-3d' }}
     >
-      {/* Depth Layer (Ghost) */}
-      <span 
-        className="absolute inset-0 opacity-0 group-hover:opacity-40 blur-[4px] pointer-events-none transition-opacity duration-300"
-        style={{ transform: 'translateZ(-30px)' }}
-      >
-        {displayChar}
-      </span>
-      {/* Secondary Depth Layer */}
-      <span 
-        className="absolute inset-0 opacity-0 group-hover:opacity-20 blur-[8px] pointer-events-none transition-opacity duration-500"
-        style={{ transform: 'translateZ(-60px)' }}
-      >
-        {displayChar}
-      </span>
-      {/* Tertiary Depth Layer */}
-      <span 
-        className="absolute inset-0 opacity-0 group-hover:opacity-10 blur-[12px] pointer-events-none transition-opacity duration-700"
-        style={{ transform: 'translateZ(-90px)' }}
-      >
-        {displayChar}
-      </span>
-      {/* Quaternary Depth Layer */}
-      <span 
-        className="absolute inset-0 opacity-0 group-hover:opacity-5 blur-[16px] pointer-events-none transition-opacity duration-1000"
-        style={{ transform: 'translateZ(-120px)' }}
-      >
-        {displayChar}
-      </span>
       {displayChar}
     </motion.span>
   );
-};
+});
+ ScrambleChar.displayName = 'ScrambleChar';
 
 const InteractiveTitle = ({ 
   text, 
@@ -947,7 +1104,7 @@ const ScrambleNavItem = ({ text, subText, onClick, isActive, as: Component = 'bu
   );
 };
 
-const ScramblePageTitle = ({ text, subText, className, noMargin = false }: { text: string, subText?: string, className?: string, noMargin?: boolean }) => {
+const ScramblePageTitle = ({ text, subText, className, noMargin = false, centered = false }: { text: string, subText?: string, className?: string, noMargin?: boolean, centered?: boolean }) => {
   const [displayText, setDisplayText] = useState(text);
   const [displaySubText, setDisplaySubText] = useState(subText || '');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -997,19 +1154,18 @@ const ScramblePageTitle = ({ text, subText, className, noMargin = false }: { tex
   }, [text, subText]);
 
   return (
-    <div className={`${noMargin ? "" : "my-8 py-4"} min-h-[1.2em] flex items-end max-w-full`}>
+    <div className={`${noMargin ? "" : "my-8 py-4"} min-h-[1.2em] flex items-end max-w-full ${centered ? "justify-center" : ""}`}>
       <h2 
         onMouseEnter={handleMouseOver}
-        className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_20px_rgba(204,255,0,0.9)] px-6 py-3 -ml-6 rounded-2xl inline-flex flex-col leading-none relative max-w-full`}
+        className={`${className} cursor-crosshair transition-all duration-300 hover:bg-black hover:text-white hover:drop-shadow-[0_0_20px_rgba(204,255,0,0.9)] px-6 py-3 ${centered ? "" : "-ml-6"} rounded-2xl inline-flex flex-col leading-none relative max-w-full ${centered ? "text-center items-center" : ""}`}
       >
-        {/* Ghost Layer: Reserves space and prevents jitter */}
-        <div className="opacity-0 pointer-events-none select-none invisible max-w-full" aria-hidden="true">
-          <span className="block whitespace-nowrap pr-10">{text}</span>
-          {subText && <span className="text-2xl md:text-3xl lg:text-4xl mt-2 font-mono tracking-widest block whitespace-nowrap pr-10">{subText}</span>}
+        <div className={`opacity-0 pointer-events-none select-none invisible max-w-full ${centered ? "flex flex-col items-center px-10" : "pr-10"}`} aria-hidden="true">
+          <span className="block whitespace-nowrap">{text}</span>
+          {subText && <span className="text-2xl md:text-3xl lg:text-4xl mt-2 font-mono tracking-widest block whitespace-nowrap">{subText}</span>}
         </div>
 
         {/* Scramble Layer: Absolute positioned on top */}
-        <div className="absolute inset-0 px-6 py-3 flex flex-col justify-end pointer-events-none max-w-full">
+        <div className={`absolute inset-0 px-6 py-3 flex flex-col justify-end pointer-events-none max-w-full ${centered ? "items-center" : ""}`}>
           <span className="block whitespace-nowrap">{displayText}</span>
           {subText && <span className="text-2xl md:text-3xl lg:text-4xl opacity-80 mt-2 font-mono tracking-widest block whitespace-nowrap">{displaySubText}</span>}
         </div>
@@ -1154,12 +1310,14 @@ const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, 
     <div className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
     
     <div className="aspect-video overflow-hidden relative bg-black/40">
-      <img 
-        src={course.thumbnailUrl} 
-        alt={course.title} 
-        className="w-full h-full object-contain grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000 ease-out" 
-        referrerPolicy="no-referrer" 
-      />
+      <InteractiveMedia className="w-full h-full">
+        <img 
+          src={course.thumbnailUrl} 
+          alt={course.title} 
+          className="w-full h-full object-contain grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000 ease-out" 
+          referrerPolicy="no-referrer" 
+        />
+      </InteractiveMedia>
       <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 mix-blend-overlay" />
     </div>
     
@@ -1731,7 +1889,9 @@ const AdminView = ({ onNavigate }: { onNavigate: (v: View) => void }) => {
       </button>
       <section className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <ScramblePageTitle text="Gestão de Oficinas - VISTO LAB" className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+          <div className="flex justify-center">
+            <ScramblePageTitle text="Gestão de Oficinas - VISTO LAB" centered={true} className="font-display text-6xl font-bold uppercase tracking-tighter mb-4" />
+          </div>
           <p className="font-sans opacity-60 max-w-2xl">Gerenciamento de inscrições e alunos.</p>
         </div>
         <button 
@@ -1823,7 +1983,9 @@ const PrivacyPolicyView = ({ onNavigate }: { onNavigate: (v: View) => void }) =>
       <ArrowLeft size={14} /> Voltar para Galeria
     </button>
     <div className="mb-16 md:mb-24">
-      <ScramblePageTitle text="Política de Privacidade" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter" />
+      <div className="flex justify-center mb-12">
+        <ScramblePageTitle text="Política de Privacidade" centered={true} className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter" />
+      </div>
     </div>
     <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed">
       <p>Bem-vindo ao <strong>VISTO_LAB</strong>. A sua privacidade é fundamental para nós. Esta política descreve como tratamos as informações no contexto de nossas práticas de educação aberta e creative coding.</p>
@@ -1858,7 +2020,9 @@ const TermsOfServiceView = ({ onNavigate }: { onNavigate: (v: View) => void }) =
       <ArrowLeft size={14} /> Voltar para Galeria
     </button>
     <div className="mb-16 md:mb-24">
-      <ScramblePageTitle text="Termos de Serviço" className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter" />
+      <div className="flex justify-center mb-12">
+        <ScramblePageTitle text="Termos de Serviço" centered={true} className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter" />
+      </div>
     </div>
     <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed">
       <p>Ao acessar e utilizar o <strong>VISTO_LAB</strong>, você concorda com os seguintes termos e condições. Se não concordar com algum destes termos, por favor, não utilize nossa plataforma.</p>
@@ -1951,9 +2115,37 @@ const MenuOverlay = ({ isOpen, onClose, setView, currentView, isAdmin }: { isOpe
 };
 
 const ArtworkCard: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artwork, onClick }) => {
+  const { intensity, playInteractionSound } = useInteractiveSystem();
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isLongPressed, setIsLongPressed] = useState(false);
+  const dragControls = useDragControls();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') {
+      dragControls.start(e);
+    } else {
+      // Long press for touch devices to allow scrolling
+      timerRef.current = setTimeout(() => {
+        setIsLongPressed(true);
+        dragControls.start(e);
+        // Haptic feedback if available
+        if (window.navigator && window.navigator.vibrate) {
+          window.navigator.vibrate(50);
+        }
+      }, 500);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsLongPressed(false);
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isDragging) return;
@@ -1972,13 +2164,25 @@ const ArtworkCard: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artw
     setRotateY(0);
   };
 
+  const handleMouseEnter = () => {
+    if (intensity !== 'OFF') {
+      playInteractionSound('hover');
+    }
+  };
+
   return (
     <motion.div
       layoutId={`artwork-${artwork.id}`}
       drag
+      dragControls={dragControls}
+      dragListener={false}
       dragMomentum={false}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={() => setIsDragging(false)}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onMouseEnter={handleMouseEnter}
       whileDrag={{ 
         scale: 1.05, 
         zIndex: 100,
@@ -1994,7 +2198,7 @@ const ArtworkCard: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artw
         rotateY: rotateY,
         transformStyle: 'preserve-3d',
         perspective: '1000px',
-        touchAction: 'none'
+        touchAction: isLongPressed ? 'none' : 'auto'
       }}
       className="relative group cursor-grab active:cursor-grabbing overflow-hidden aspect-[3/4] bg-white/5 border border-white/10"
       whileHover={{ scale: 1.02 }}
@@ -2236,12 +2440,14 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
         
         {/* Image */}
         <div className="relative w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#ff00ff] shadow-[0_0_30px_rgba(255,0,255,0.3)] z-10 aspect-square">
-          <img 
-            src={artist.photo} 
-            alt={artist.name} 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+          <InteractiveMedia className="w-full h-full">
+            <img 
+              src={artist.photo} 
+              alt={artist.name} 
+              className="w-full h-full object-cover transition-transform duration-500 ease-out"
+              referrerPolicy="no-referrer"
+            />
+          </InteractiveMedia>
         </div>
       </div>
 
@@ -2309,11 +2515,106 @@ const ArtistsView = () => {
   );
 };
 
+const GlobalDiffuseGlow = () => {
+  const { intensity } = useInteractiveSystem();
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (intensity === 'OFF') return;
+
+    let rafId: number;
+    const updatePosition = () => {
+      if (glowRef.current) {
+        glowRef.current.style.transform = `translate(calc(var(--mouse-x) - 50%), calc(var(--mouse-y) - 50%))`;
+      }
+      rafId = requestAnimationFrame(updatePosition);
+    };
+
+    rafId = requestAnimationFrame(updatePosition);
+    return () => cancelAnimationFrame(rafId);
+  }, [intensity]);
+
+  if (intensity === 'OFF') return null;
+
+  return (
+    <div 
+      ref={glowRef}
+      className="fixed inset-0 pointer-events-none z-[1] transition-transform duration-700 ease-out"
+      style={{
+        width: '600px',
+        height: '600px',
+        background: 'radial-gradient(circle, rgba(204, 255, 0, 0.08) 0%, rgba(204, 255, 0, 0) 70%)',
+        filter: 'blur(80px)',
+        borderRadius: '50%',
+      }}
+    />
+  );
+};
+
+const InteractiveMedia = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => {
+  const { intensity, playInteractionSound } = useInteractiveSystem();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isVisible || intensity === 'OFF' || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+
+    const moveX = x * 15;
+    const moveY = y * 15;
+
+    const media = containerRef.current.querySelector('img, video, canvas');
+    if (media instanceof HTMLElement) {
+      media.style.transform = `scale(1.05) translate(${moveX}px, ${moveY}px)`;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    const media = containerRef.current?.querySelector('img, video, canvas');
+    if (media instanceof HTMLElement) {
+      media.style.transform = `scale(1) translate(0, 0)`;
+    }
+  };
+
+  const handleMouseEnter = () => {
+    if (intensity !== 'OFF') {
+      playInteractionSound('hover');
+    }
+  };
+
+  return (
+    <div 
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onMouseEnter={handleMouseEnter}
+      className={`relative overflow-hidden group ${className}`}
+    >
+      {children}
+      <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+    </div>
+  );
+};
+
 export default function App() {
   return (
-    <ErrorBoundary>
-      <AppContent />
-    </ErrorBoundary>
+    <InteractiveProvider>
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
+    </InteractiveProvider>
   );
 }
 
@@ -2326,6 +2627,7 @@ interface AppUser {
 }
 
 function AppContent() {
+  const { intensity, setIntensity, isSoundEnabled, setIsSoundEnabled } = useInteractiveSystem();
   const { scrollY } = useScroll();
   const headerY = useTransform(scrollY, [0, 100], [0, 0]);
   const headerBg = useTransform(
@@ -2387,7 +2689,6 @@ function AppContent() {
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [studentSubmissions, setStudentSubmissions] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   const handleNavigate = (newView: View) => {
     setView(newView);
@@ -2702,8 +3003,24 @@ function AppContent() {
     }
   }, [selectedArtwork, selectedCourse, isMenuOpen]);
 
+  useEffect(() => {
+    // Only update intensity if not on mobile (where it's forced to OFF)
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouch) {
+      setIntensity('OFF');
+      return;
+    }
+
+    if (view === 'gallery') {
+      setIntensity('HIGH');
+    } else {
+      setIntensity('LOW');
+    }
+  }, [view, setIntensity]);
+
   return (
     <div className="min-h-screen grid-lines">
+      {view !== 'gallery' && <GlobalDiffuseGlow />}
       <Header 
         onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} 
         isMenuOpen={isMenuOpen} 
@@ -2744,9 +3061,9 @@ function AppContent() {
               >
                 <InteractiveTitle 
                   lines={[
-                    { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[clamp(2rem,7vw,5rem)] font-bold leading-none tracking-tight" },
-                    { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[clamp(1.8rem,6.5vw,4.5rem)] font-bold leading-none tracking-tight mb-2 md:mb-4" },
-                    { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[clamp(1.2rem,3vw,2.5rem)] font-medium leading-tight tracking-tight" }
+                    { text: "V.I.S.T.O: OCUPAÇÕES", className: "font-display text-[clamp(2.4rem,8.5vw,6rem)] font-bold leading-none tracking-tight" },
+                    { text: "VÍDEO_COREOGRÁFICAS", className: "font-display text-[clamp(2.1rem,7.8vw,5.4rem)] font-bold leading-none tracking-tight mb-2 md:mb-4" },
+                    { text: "REABRINDO O LUGARZINHO NO 4º DISTRITO/POA.", className: "font-display text-[clamp(1.4rem,3.5vw,2.8rem)] font-medium leading-tight tracking-tight" }
                   ]}
                   highlights={['LUGARZINHO']}
                 />
@@ -2864,9 +3181,10 @@ function AppContent() {
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
-          <section className="mb-16">
+          <section className="mb-16 flex flex-col items-center text-center">
             <ScramblePageTitle 
               text="WORKSHOPS"
+              centered={true}
               className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-6"
             />
             <p className="font-sans text-[#00FF41] max-w-2xl text-lg leading-relaxed">Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia.</p>
@@ -2901,9 +3219,10 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           
-          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end">
+          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end justify-center">
             <ScramblePageTitle 
               text="AO VIVO — SESSÕES DE CASA ABERTA" 
+              centered={true}
               className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
             />
           </section>
@@ -2915,12 +3234,14 @@ function AppContent() {
                 <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
               </div>
               <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
-                <img 
-                  src="/espera_ao_vivo.webp" 
-                  alt="AO VIVO — SESSÕES DE CASA ABERTA" 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+                <InteractiveMedia className="w-full h-full">
+                  <img 
+                    src="/espera_ao_vivo.webp" 
+                    alt="AO VIVO — SESSÕES DE CASA ABERTA" 
+                    className="w-full h-full object-cover transition-transform duration-500 ease-out"
+                    referrerPolicy="no-referrer"
+                  />
+                </InteractiveMedia>
               </div>
             </div>
 
@@ -2983,8 +3304,8 @@ function AppContent() {
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
-          <section className="mb-20">
-            <ScramblePageTitle text="ARTISTAS" className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-8" />
+          <section className="mb-20 flex justify-center">
+            <ScramblePageTitle text="ARTISTAS" centered={true} className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-8" />
           </section>
           <ArtistsView />
         </main>
@@ -2998,9 +3319,9 @@ function AppContent() {
           >
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
-          <section className="mb-16">
-            <ScramblePageTitle text="SonorⒶ" className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-4" />
-            <p className="font-sans text-[#00FF41] max-w-2xl text-lg">Experimentações sonoras e paisagens auditivas.</p>
+          <section className="mb-16 flex flex-col items-center">
+            <ScramblePageTitle text="SonorⒶ" centered={true} className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-4" />
+            <p className="font-sans text-[#00FF41] max-w-2xl text-lg text-center">Experimentações sonoras e paisagens auditivas.</p>
           </section>
           <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
             <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
@@ -3017,9 +3338,10 @@ function AppContent() {
             <ArrowLeft size={14} /> Voltar para Galeria
           </button>
           
-          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end">
+          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end justify-center">
             <ScramblePageTitle 
               text="SONORA_VISTA PODCAST" 
+              centered={true}
               className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
             />
           </section>
@@ -3031,23 +3353,27 @@ function AppContent() {
                 <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
               </div>
               <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
-                <img 
-                  src="/espera_sonora_vista.webp" 
-                  alt="SONORA_VISTA PODCAST" 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+                <InteractiveMedia className="w-full h-full">
+                  <img 
+                    src="/espera_sonora_vista.webp" 
+                    alt="SONORA_VISTA PODCAST" 
+                    className="w-full h-full object-cover transition-transform duration-500 ease-out"
+                    referrerPolicy="no-referrer"
+                  />
+                </InteractiveMedia>
               </div>
 
               {/* New Animated WebP */}
               <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10 mt-8">
-                <img 
-                  src="/loopsonora_vista.webp"
-                  alt="Loop Sonora Vista"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                />
+                <InteractiveMedia className="w-full h-full">
+                  <img 
+                    src="/loopsonora_vista.webp"
+                    alt="Loop Sonora Vista"
+                    className="w-full h-full object-cover transition-transform duration-500 ease-out"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                </InteractiveMedia>
               </div>
             </div>
 
