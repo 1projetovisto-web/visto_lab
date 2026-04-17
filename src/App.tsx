@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, Component, type ErrorInfo, type Rea
 import { motion, AnimatePresence, useScroll, useTransform, useDragControls } from 'framer-motion';
 import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink, Youtube, MousePointer2 } from 'lucide-react';
 import * as Tone from 'tone';
-import { useSomaticMouse } from './hooks/useSomaticMouse';
 import { ARTWORKS, type Artwork, COURSES, type Course, type Lesson } from './data';
 import { 
   auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, 
@@ -11,6 +10,50 @@ import {
 } from './firebase';
 
 type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin' | 'privacidade' | 'termos';
+
+// --- HOOKS ---
+/**
+ * Hook Somático: useSomaticMouse
+ * Implementa a "Massa" e "Inércia" no cursor.
+ * Transforma a coordenada bruta em um movimento fluido (lerp).
+ */
+const useSomaticMouse = (mass = 0.08) => {
+  const mousePos = useRef({ 
+    x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, 
+    y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0 
+  });
+  const targetPos = useRef({ x: mousePos.current.x, y: mousePos.current.y });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      targetPos.current = { x: e.clientX, y: e.clientY };
+    };
+
+    let animationFrameId: number;
+
+    const update = () => {
+      // Interpolação Linear (LERP)
+      mousePos.current.x += (targetPos.current.x - mousePos.current.x) * mass;
+      mousePos.current.y += (targetPos.current.y - mousePos.current.y) * mass;
+      
+      // Atualiza variáveis CSS para efeitos de GPU (Glow, etc)
+      document.documentElement.style.setProperty('--mouse-x', `${mousePos.current.x}px`);
+      document.documentElement.style.setProperty('--mouse-y', `${mousePos.current.y}px`);
+      
+      animationFrameId = requestAnimationFrame(update);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    animationFrameId = requestAnimationFrame(update);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [mass]);
+
+  return mousePos;
+};
 
 // --- INTERACTIVE SYSTEM ---
 interface InteractiveContextType {
