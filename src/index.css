@@ -20,6 +20,33 @@
   }
 }
 
+/* Global Creative Coding Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #CCFF00;
+  border-radius: 0px;
+  box-shadow: 0 0 10px rgba(204, 255, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #e6ff80;
+  box-shadow: 0 0 15px rgba(204, 255, 0, 0.6);
+}
+
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #CCFF00 #0a0a0a;
+  }
+}
+
 .grid-lines {
   background-size: 40px 40px;
   background-image: linear-gradient(to right, rgba(204, 255, 0, 0.05) 1px, transparent 1px),
