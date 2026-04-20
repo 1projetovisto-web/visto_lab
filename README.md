@@ -81,7 +81,7 @@ Esta plataforma e todo o conteúdo aqui veiculado fazem parte do projeto realiza
 ---
 
 <div align="center">
-  <img src="re%CC%81gua%20%20LOGOS%20%20(7660%20x%201200%20px)%20(1).png" alt="Régua de Logos de Fomento" width="800" />
+  <img src="public/regua_logos.png" alt="Régua de Logos de Fomento" width="800" />
   
   <br />
   <br />
