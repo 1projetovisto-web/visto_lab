@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Component, type ErrorInfo, type ReactNode } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform, useDragControls } from 'framer-motion';
-import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink, Youtube, MousePointer2 } from 'lucide-react';
+import { Menu, X, Info, ArrowUpRight, Github, Instagram, Twitter, BookOpen, User, LogOut, CheckCircle, Award, AlertTriangle, Search, ArrowLeft, Lock, ChevronRight, ChevronLeft, Check, Download, LayoutDashboard, Play, Pause, Volume2, VolumeX, ArrowRight, ExternalLink, Youtube, MousePointer2, Plus } from 'lucide-react';
 import * as Tone from 'tone';
 import { ARTWORKS, type Artwork, COURSES, type Course, type Lesson } from './data';
 import { 
@@ -9,7 +9,7 @@ import {
   handleFirestoreError, OperationType, type FirebaseUser
 } from './firebase';
 
-type View = 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin' | 'privacidade' | 'termos';
+type View = 'home' | 'gallery' | 'courses' | 'login' | 'live' | 'artists' | 'sonora' | 'podcast' | 'admin' | 'privacidade' | 'termos';
 
 // --- HOOKS ---
 /**
@@ -32,13 +32,21 @@ const useSomaticMouse = (mass = 0.08) => {
     let animationFrameId: number;
 
     const update = () => {
+      const dx = targetPos.current.x - mousePos.current.x;
+      const dy = targetPos.current.y - mousePos.current.y;
+      
       // Interpolação Linear (LERP)
-      mousePos.current.x += (targetPos.current.x - mousePos.current.x) * mass;
-      mousePos.current.y += (targetPos.current.y - mousePos.current.y) * mass;
+      mousePos.current.x += dx * mass;
+      mousePos.current.y += dy * mass;
+      
+      // Calcular velocidade (magnitude do deslocamento)
+      const velocity = Math.sqrt(dx * dx + dy * dy);
+      const normalizedVelocity = Math.min(velocity / 100, 1); // Normaliza entre 0 e 1
       
       // Atualiza variáveis CSS para efeitos de GPU (Glow, etc)
       document.documentElement.style.setProperty('--mouse-x', `${mousePos.current.x}px`);
       document.documentElement.style.setProperty('--mouse-y', `${mousePos.current.y}px`);
+      document.documentElement.style.setProperty('--mouse-v', `${normalizedVelocity}`);
       
       animationFrameId = requestAnimationFrame(update);
     };
@@ -62,6 +70,8 @@ interface InteractiveContextType {
   setIsSoundEnabled: (enabled: boolean) => void;
   intensity: 'HIGH' | 'LOW' | 'OFF';
   setIntensity: (intensity: 'HIGH' | 'LOW' | 'OFF') => void;
+  isConstellationActive: boolean;
+  setIsConstellationActive: (active: boolean) => void;
   playInteractionSound: (type?: 'hover' | 'click' | 'success') => void;
 }
 
@@ -77,6 +87,7 @@ const InteractiveProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const mousePos = useSomaticMouse(0.08); // Sistema Nervoso: Inércia Somática
   const [isSoundEnabled, setIsSoundEnabled] = useState(false);
   const [intensity, setIntensity] = useState<'HIGH' | 'LOW' | 'OFF'>('LOW');
+  const [isConstellationActive, setIsConstellationActive] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
   // Audio Refs
@@ -152,6 +163,8 @@ const InteractiveProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsSoundEnabled, 
       intensity, 
       setIntensity,
+      isConstellationActive,
+      setIsConstellationActive,
       playInteractionSound 
     }}>
       {children}
@@ -245,6 +258,7 @@ const Magnetic = ({ children, strength = 0.5 }: { children: ReactNode; strength?
 };
 
 const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: boolean }) => {
+  const { setIsConstellationActive } = useInteractiveSystem();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Audio state refs
@@ -642,7 +656,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 253, 231, ${opacity})`;
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 8;
         ctx.shadowColor = '#CCFF00';
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -800,6 +814,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
       mouseY = newMouseY;
       lastMousePosRef.current = { x: mouseX, y: mouseY };
       isHoveringRef.current = true;
+      setIsConstellationActive(true);
 
       // Update Audio
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
@@ -856,6 +871,7 @@ const ConstellationBackground = ({ isSoundEnabled = true }: { isSoundEnabled?: b
 
     const handleInteractionEnd = () => {
       isHoveringRef.current = false;
+      setIsConstellationActive(false);
       mouseX = -1000;
       mouseY = -1000;
 
@@ -1256,11 +1272,11 @@ const UserProfileMenu = ({ user, isAdmin, currentView, setView, onLogout }: {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute right-0 top-full mt-2 w-48 bg-bg border border-white/10 shadow-xl z-50 py-2"
+            className="absolute right-0 top-full mt-2 w-48 bg-black/80 backdrop-blur-xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-50 py-2 rounded-xl overflow-hidden"
           >
             <div className="px-4 py-2 border-b border-white/10 mb-2">
               <span className="font-mono text-[10px] uppercase opacity-50 block truncate">
@@ -1311,7 +1327,7 @@ const Header = ({ onToggleMenu, isMenuOpen, currentView, setView, user, onLogout
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex justify-between items-center w-full">
       <div className="pointer-events-auto flex items-center gap-8 xl:gap-16 flex-1 min-w-0">
         <div className="shrink-0">
-          <ScrambleTitle onClick={() => setView('gallery')} />
+          <ScrambleTitle onClick={() => setView('home')} />
         </div>
         <nav className="hidden sm:flex items-center gap-2 md:gap-4 lg:gap-6 xl:gap-8 flex-nowrap overflow-x-auto hide-scrollbar py-4 -my-4 px-4 -mx-4">
           <ScrambleNavItem text="Galeria" onClick={() => setView('gallery')} isActive={currentView === 'gallery'} className="font-bold text-xs md:text-sm lg:text-lg xl:text-xl" />
@@ -1347,12 +1363,12 @@ const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, 
     initial={{ opacity: 0, y: 30 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
-    className="relative bg-white/5 border border-white/10 overflow-hidden group hover:border-accent/40 transition-all duration-700 cursor-pointer flex flex-col h-full"
+    className="relative bg-black/40 backdrop-blur-md border border-white/10 overflow-hidden group hover:border-accent/40 transition-all duration-700 cursor-pointer flex flex-col h-full"
   >
     {/* Scanline Effect */}
     <div className="absolute inset-0 pointer-events-none z-10 opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
     
-    <div className="aspect-video overflow-hidden relative bg-black/40">
+    <div className="aspect-video overflow-hidden relative bg-black/20">
       <InteractiveMedia className="w-full h-full">
         <img 
           src={course.thumbnailUrl} 
@@ -1364,7 +1380,7 @@ const CourseCard: React.FC<{ course: Course; onOpen: () => void }> = ({ course, 
       <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 mix-blend-overlay" />
     </div>
     
-    <div className="p-6 flex flex-col flex-grow justify-between relative z-20 bg-bg/80 backdrop-blur-sm">
+    <div className="p-6 flex flex-col flex-grow justify-between relative z-20 bg-black/60 backdrop-blur-sm">
       <div>
         <h3 className="font-display text-xl font-bold mb-2 uppercase tracking-tight group-hover:text-accent transition-colors">{course.title}</h3>
         <p className="font-sans text-sm opacity-60 mb-4">{course.instructor}</p>
@@ -1990,9 +2006,9 @@ const AdminView = ({ onNavigate }: { onNavigate: (v: View) => void }) => {
 
 const LoginView = ({ onLogin }: { onLogin: () => void }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 relative z-10 pointer-events-auto">
-      <div className="w-full max-w-md p-12 border border-white/10 bg-white/5 shadow-2xl">
-        <h2 className="font-display text-4xl font-bold uppercase tracking-tighter mb-8">Acesso ao <span className="text-accent">Lab</span></h2>
+    <div className="min-h-screen flex items-center justify-center p-6 relative z-10 pointer-events-auto bg-transparent">
+      <div className="w-full max-w-md p-12 border border-white/10 bg-black/40 backdrop-blur-md shadow-2xl rounded-2xl">
+        <h2 className="font-display text-4xl font-bold uppercase tracking-tighter mb-8 drop-shadow-[0_0_10px_rgba(204,255,0,0.3)]">Acesso ao <span className="text-accent">Lab</span></h2>
         <p className="font-sans opacity-60 mb-8 text-sm">Conecte-se com sua conta Google para acessar os workshops e salvar seu progresso na nuvem.</p>
         <button 
           onClick={() => {
@@ -2018,19 +2034,19 @@ const LoginView = ({ onLogin }: { onLogin: () => void }) => {
 // ... ArtworkCard and ArtworkModal remain similar ...
 
 const PrivacyPolicyView = ({ onNavigate }: { onNavigate: (v: View) => void }) => (
-  <main className="pt-32 pb-24 px-6 md:px-12 min-h-screen max-w-4xl mx-auto">
+  <main className="pt-32 pb-24 px-6 md:px-12 min-h-screen max-w-4xl mx-auto bg-transparent">
     <button 
       onClick={() => onNavigate('gallery')}
-      className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+      className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform drop-shadow-[0_0_5px_rgba(204,255,0,0.3)]"
     >
       <ArrowLeft size={14} /> Voltar para Galeria
     </button>
     <div className="mb-16 md:mb-24">
       <div className="flex justify-center mb-12">
-        <ScramblePageTitle text="Política de Privacidade" centered={true} className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter" />
+        <ScramblePageTitle text="Política de Privacidade" centered={true} className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" />
       </div>
     </div>
-    <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed">
+    <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed bg-black/40 backdrop-blur-md p-8 md:p-12 border border-white/5 rounded-2xl">
       <p>Bem-vindo ao <strong>VISTO_LAB</strong>. A sua privacidade é fundamental para nós. Esta política descreve como tratamos as informações no contexto de nossas práticas de educação aberta e creative coding.</p>
       
       <h3 className="text-xl font-bold text-accent mt-8 mb-4 uppercase font-mono">1. Coleta de Dados e Uso de Câmeras</h3>
@@ -2092,6 +2108,7 @@ const TermsOfServiceView = ({ onNavigate }: { onNavigate: (v: View) => void }) =
 
 const MenuOverlay = ({ isOpen, onClose, setView, currentView, isAdmin }: { isOpen: boolean; onClose: () => void; setView: (v: View) => void; currentView: View; isAdmin?: boolean }) => {
   const menuItems: { label: string; view: View }[] = [
+    { label: 'Início', view: 'home' },
     { label: 'Galeria', view: 'gallery' },
     { label: 'Workshops', view: 'courses' },
     { label: 'Ao Vivo', view: 'live' },
@@ -2220,6 +2237,7 @@ const ArtworkCard: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artw
       dragControls={dragControls}
       dragListener={false}
       dragMomentum={false}
+      dragElastic={0.05}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={() => setIsDragging(false)}
       onPointerDown={handlePointerDown}
@@ -2229,7 +2247,8 @@ const ArtworkCard: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artw
       whileDrag={{ 
         scale: 1.05, 
         zIndex: 100,
-        boxShadow: "0 20px 40px rgba(0,0,0,0.4)"
+        boxShadow: "0 25px 50px rgba(204, 255, 0, 0.15)",
+        cursor: 'grabbing'
       }}
       onClick={() => {
         if (!isDragging) onClick();
@@ -2241,9 +2260,10 @@ const ArtworkCard: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artw
         rotateY: rotateY,
         transformStyle: 'preserve-3d',
         perspective: '1000px',
-        touchAction: isLongPressed ? 'none' : 'auto'
+        touchAction: isLongPressed ? 'none' : 'auto',
+        zIndex: isDragging ? 50 : 1
       }}
-      className="relative group cursor-grab active:cursor-grabbing overflow-hidden aspect-[3/4] bg-white/5 border border-white/10"
+      className={`relative group cursor-grab overflow-hidden aspect-[3/4] bg-white/5 border border-white/10 ${isDragging ? 'shadow-2xl shadow-accent/20' : ''}`}
       whileHover={{ scale: 1.02 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
@@ -2286,12 +2306,110 @@ const ArtworkCard: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artw
   );
 };
 
+const SomaticLoading = ({ progress }: { progress: string }) => {
+  return (
+    <div className="absolute inset-0 bg-black flex flex-col items-center justify-center p-8 text-accent font-mono z-20">
+      <div className="relative w-48 h-48 mb-6">
+        {/* Scanning Line */}
+        <motion.div 
+          className="absolute inset-x-0 top-0 h-[2px] bg-accent/40 blur-[2px] z-10"
+          animate={{ top: ['0%', '100%', '0%'] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+        />
+        {/* Data Grid */}
+        <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 opacity-20">
+           {Array.from({ length: 36 }).map((_, i) => (
+             <div key={i} className="border-[0.5px] border-accent/30" />
+           ))}
+        </div>
+        {/* Pulsing Aura */}
+        <motion.div 
+          className="absolute inset-0 border border-accent/20 rounded-full"
+          animate={{ scale: [0.8, 1.1, 0.8], opacity: [0.2, 0.5, 0.2] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 border border-accent/40 rounded-full flex items-center justify-center overflow-hidden">
+                <motion.div 
+                  className="w-full h-full bg-accent/10"
+                  animate={{ height: ['0%', '100%', '0%'] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
+            </div>
+        </div>
+      </div>
+      <div className="text-center space-y-3">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <motion.div 
+            className="w-1.5 h-1.5 bg-accent rounded-full"
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
+          <span className="text-[9px] uppercase tracking-[0.4em] opacity-60">Soma-Bit Protocol</span>
+        </div>
+        <h3 className="text-xs font-bold tracking-[0.2em] uppercase text-accent/90">{progress}</h3>
+        <div className="w-40 h-[1px] bg-accent/10 mx-auto mt-4 overflow-hidden relative">
+          <motion.div 
+            className="absolute inset-y-0 w-1/3 bg-accent/60 blur-[1px]"
+            animate={{ left: ['-40%', '110%'] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          />
+        </div>
+        <div className="mt-4 flex gap-1 justify-center">
+             {["0", "1", "0", "0"].map((v, i) => (
+               <motion.span 
+                 key={i} 
+                 className="text-[8px] opacity-30"
+                 animate={{ opacity: [0.3, 1, 0.3] }}
+                 transition={{ duration: 0.5, delay: i * 0.1, repeat: Infinity }}
+               >{v}</motion.span>
+             ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: () => void }) => {
-  const [isInteractive, setIsInteractive] = useState(false);
+  const [loadStatus, setLoadStatus] = useState<'idle' | 'loading' | 'ready'>('idle');
+  const [loadingText, setLoadingText] = useState("Iniciando Calibração...");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    setIsInteractive(false);
+    setLoadStatus('idle');
+    setLoadingText("Iniciando Calibração...");
   }, [artwork]);
+
+  useEffect(() => {
+    if (loadStatus === 'loading') {
+      const messages = [
+        "Iniciando Calibração...",
+        "Adquirindo Fluxo Biométrico...",
+        "Sincronizando Malha Somática...",
+        "Otimizando Buffer de Vídeo...",
+        "Handshake: OpenProcessing Estabelecido",
+        "Pronto para Ocupação."
+      ];
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < messages.length - 1) {
+          i++;
+          setLoadingText(messages[i]);
+        }
+      }, 1500);
+      return () => clearInterval(interval);
+    }
+  }, [loadStatus]);
+
+  const handleActivate = () => {
+    setLoadStatus('loading');
+  };
+
+  const handleOnLoad = () => {
+    setTimeout(() => {
+        setLoadStatus('ready');
+    }, 1000); // Give a bit more time for p5 to actually paint
+  };
 
   return (
     <AnimatePresence>
@@ -2317,14 +2435,53 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
               </button>
             
             <div className="w-full md:w-2/3 aspect-square md:aspect-auto overflow-hidden bg-black flex items-center justify-center relative">
-              {artwork.openProcessingId && isInteractive ? (
-                <iframe 
-                  src={`https://openprocessing.org/sketch/${artwork.openProcessingId}/embed/`}
-                  className="w-full h-full border-none"
-                  allow="camera; microphone; display-capture; geolocation"
-                  allowFullScreen
-                  sandbox="allow-same-origin allow-scripts"
-                />
+              {artwork.openProcessingId && (loadStatus === 'loading' || loadStatus === 'ready') ? (
+                <>
+                  <AnimatePresence mode="wait">
+                    {loadStatus === 'loading' && (
+                      <motion.div 
+                        key="loader"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-20"
+                      >
+                         {/* Ghost Video Overlay if exists, otherwise SomaticLoader */}
+                         {artwork.videoUrl ? (
+                            <div className="absolute inset-0 z-10">
+                                <video 
+                                    src={artwork.videoUrl}
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                    className="w-full h-full object-cover opacity-60 mix-blend-screen"
+                                />
+                                <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <SomaticLoading progress={loadingText} />
+                                </div>
+                            </div>
+                         ) : (
+                            <SomaticLoading progress={loadingText} />
+                         )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  
+                  <motion.iframe 
+                    ref={iframeRef}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: loadStatus === 'ready' ? 1 : 0 }}
+                    transition={{ duration: 1 }}
+                    onLoad={handleOnLoad}
+                    src={`https://openprocessing.org/sketch/${artwork.openProcessingId}/embed/`}
+                    className="w-full h-full border-none z-10"
+                    allow="camera; microphone; display-capture; geolocation"
+                    allowFullScreen
+                    sandbox="allow-same-origin allow-scripts"
+                  />
+                </>
               ) : (
                 <>
                   <img
@@ -2336,10 +2493,15 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
                   {artwork.openProcessingId && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
                       <button 
-                        onClick={() => setIsInteractive(true)}
-                        className="px-8 py-4 bg-accent text-bg font-display font-bold uppercase tracking-widest flex items-center gap-3"
+                        onClick={handleActivate}
+                        className="px-8 py-4 bg-accent text-bg font-display font-bold uppercase tracking-widest flex items-center gap-3 group transition-all"
                       >
-                        <ArrowUpRight size={20} />
+                        <motion.div
+                            animate={{ rotate: [0, 90, 180, 270, 360] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                        >
+                            <ArrowUpRight size={20} />
+                        </motion.div>
                         Ativar Sketch Interativo
                       </button>
                     </div>
@@ -2378,25 +2540,36 @@ const ArtworkModal = ({ artwork, onClose }: { artwork: Artwork | null; onClose: 
               </div>
               
               <div className="mt-12 pt-8 border-t border-white/10 flex flex-col gap-4">
-                {artwork.openProcessingId && !isInteractive && (
+                {artwork.openProcessingId && loadStatus === 'idle' && (
                   <button 
-                    onClick={() => setIsInteractive(true)}
+                    onClick={handleActivate}
                     className="w-full py-4 border border-accent text-accent hover:bg-accent hover:text-bg font-display uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2"
                   >
                     Ativar Sketch <ArrowUpRight size={16} />
                   </button>
                 )}
                 {artwork.openProcessingId && (
-                  <a 
-                    href={`https://openprocessing.org/sketch/${artwork.openProcessingId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-4 border border-white/10 hover:border-white/40 font-display uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 text-center"
-                  >
-                    Ver no OpenProcessing <ArrowUpRight size={16} />
-                  </a>
+                  <div className="space-y-3">
+                    <a 
+                      href={`https://openprocessing.org/sketch/${artwork.openProcessingId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-4 border border-accent bg-accent/5 text-accent hover:bg-accent hover:text-bg font-display uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 text-center group"
+                    >
+                      <Download size={16} className="group-hover:translate-y-1 transition-transform" /> 
+                      Remixar Código Fonte (Fork)
+                    </a>
+                    <a 
+                      href={`https://openprocessing.org/sketch/${artwork.openProcessingId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-4 border border-white/10 hover:border-white/40 font-display uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 text-center opacity-60 hover:opacity-100"
+                    >
+                      Ver no OpenProcessing <ExternalLink size={14} />
+                    </a>
+                  </div>
                 )}
-                <button className="w-full py-4 border border-white/20 hover:border-white/60 font-display uppercase tracking-widest text-sm transition-all">
+                <button className="w-full py-4 border border-white/20 hover:border-white/60 font-display uppercase tracking-widest text-sm transition-all text-white/40 hover:text-white">
                   Share Artwork
                 </button>
               </div>
@@ -2473,7 +2646,12 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-start w-full bg-black/40 backdrop-blur-md border border-white/5 p-6 md:p-10 rounded-2xl"
+    >
       {/* Left Side: 40% */}
       <div className="w-full md:w-[40%] flex justify-center items-start relative shrink-0">
         {/* Glow Background */}
@@ -2504,7 +2682,7 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
           />
         </div>
         
-        <div className="relative w-full h-[250px] md:h-[300px] overflow-hidden">
+        <div className="relative w-full h-[250px] md:h-[300px] overflow-hidden rounded-xl bg-black/20 backdrop-blur-sm border border-white/5 p-4">
           <div 
             onScroll={handleScroll}
             className="h-full overflow-y-auto pr-2 md:pr-4 custom-scrollbar-magenta font-space text-sm md:text-base text-gray-300 leading-relaxed"
@@ -2525,24 +2703,24 @@ const ArtistCard: React.FC<{ artist: typeof ARTISTS_DATA[0] }> = ({ artist }) =>
 
           {/* Fade-out Gradient Mask (Option 1) */}
           <div 
-            className={`absolute bottom-0 left-0 right-4 h-24 bg-gradient-to-t from-bg via-bg/90 to-transparent pointer-events-none transition-opacity duration-500 ${hasScrolled ? 'opacity-0' : 'opacity-100'}`}
+            className={`absolute bottom-0 left-0 right-4 h-24 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none transition-opacity duration-500 ${hasScrolled ? 'opacity-0' : 'opacity-100'}`}
           />
 
           {/* Terminal Indicator (Option 2) */}
           <div 
-            className={`absolute bottom-2 right-8 font-mono text-[#ff00ff] text-xs md:text-sm animate-pulse pointer-events-none transition-opacity duration-500 bg-bg px-3 py-1 rounded-md shadow-[0_0_10px_rgba(10,10,10,0.8)] ${hasScrolled ? 'opacity-0' : 'opacity-100'}`}
+            className={`absolute bottom-2 right-8 font-mono text-[#ff00ff] text-xs md:text-sm animate-pulse pointer-events-none transition-opacity duration-500 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-[#ff00ff]/30 shadow-[0_0_10px_rgba(255,0,255,0.2)] ${hasScrolled ? 'opacity-0' : 'opacity-100'}`}
           >
             [ scroll ↓ ]
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
 const ArtistsView = () => {
   return (
-    <div className="flex flex-col w-full mt-12 bg-[#000000]">
+    <div className="flex flex-col w-full mt-12 bg-transparent">
       {ARTISTS_DATA.map((artist, index) => {
         const isLast = index === ARTISTS_DATA.length - 1;
         
@@ -2559,38 +2737,409 @@ const ArtistsView = () => {
 };
 
 const GlobalDiffuseGlow = () => {
-  const { intensity } = useInteractiveSystem();
+  const { intensity, isConstellationActive } = useInteractiveSystem();
   const glowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (intensity === 'OFF') return;
+    if (intensity === 'OFF' || isConstellationActive) return;
 
     let rafId: number;
     const updatePosition = () => {
       if (glowRef.current) {
+        // Usa as variáveis CSS diretamente para máxima performance
         glowRef.current.style.transform = `translate(calc(var(--mouse-x) - 50%), calc(var(--mouse-y) - 50%))`;
+        
+        // Efeito dinâmico baseado na velocidade calculada no hook
+        const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mouse-v')) || 0;
+        const scale = 1 + (v * 0.4); // Aumenta até 40% com o movimento
+        const opacity = 0.3 + (v * 0.2); // Base 0.3 (bem mais forte), sobe até 0.5
+        
+        glowRef.current.style.opacity = `${opacity}`;
+        glowRef.current.style.scale = `${scale}`;
       }
       rafId = requestAnimationFrame(updatePosition);
     };
 
     rafId = requestAnimationFrame(updatePosition);
     return () => cancelAnimationFrame(rafId);
-  }, [intensity]);
+  }, [intensity, isConstellationActive]);
 
-  if (intensity === 'OFF') return null;
+  if (intensity === 'OFF' || isConstellationActive) return null;
 
   return (
     <div 
       ref={glowRef}
-      className="fixed inset-0 pointer-events-none z-[1] transition-transform duration-700 ease-out"
+      className="fixed inset-0 pointer-events-none z-[1] transition-all duration-500 ease-out will-change-transform mix-blend-screen"
       style={{
-        width: '600px',
-        height: '600px',
-        background: 'radial-gradient(circle, rgba(204, 255, 0, 0.08) 0%, rgba(204, 255, 0, 0) 70%)',
-        filter: 'blur(80px)',
+        width: '900px',
+        height: '900px',
+        background: 'radial-gradient(circle, rgba(204, 255, 0, 0.35) 0%, rgba(204, 255, 0, 0.12) 30%, rgba(204, 255, 0, 0.04) 50%, transparent 80%)',
+        filter: 'blur(100px)',
         borderRadius: '50%',
       }}
     />
+  );
+};
+
+// Conjunto de caracteres usados na "nuvem" de código
+const ASCII_CHARS = "01VISTOLAB<>[]{}/\\|!@#$%&*+=-_~^";
+
+const ASCIILantern = () => {
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isReady, setIsReady] = useState(false);
+
+  // 1. Rastreador de movimento (Mouse e Touch)
+  useEffect(() => {
+    const updatePos = (x: number, y: number) => {
+      setMousePos({ x, y });
+      if (!isReady) setIsReady(true);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => updatePos(e.clientX, e.clientY);
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) updatePos(e.touches[0].clientX, e.touches[0].clientY);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches[0]) updatePos(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [isReady]);
+
+  // 2. Geração da grade de caracteres (Gera apenas uma vez para performance)
+  const asciiGrid = useMemo(() => {
+    let raw = "";
+    const totalChars = 15000; // Ajuste conforme a densidade desejada
+    for (let i = 0; i < totalChars; i++) {
+      raw += ASCII_CHARS[Math.floor(Math.random() * ASCII_CHARS.length)];
+    }
+    return raw;
+  }, []);
+
+  return (
+    <div 
+      className="fixed inset-0 pointer-events-none z-0 overflow-hidden mix-blend-screen"
+      style={{
+        // A MÁGICA: Uma máscara que revela apenas o círculo onde está o mouse
+        maskImage: isReady 
+          ? `radial-gradient(circle var(--reveal-radius, 400px) at ${mousePos.x}px ${mousePos.y}px, black 40%, transparent 95%)` 
+          : 'none',
+        WebkitMaskImage: isReady 
+          ? `radial-gradient(circle var(--reveal-radius, 400px) at ${mousePos.x}px ${mousePos.y}px, black 40%, transparent 95%)` 
+          : 'none',
+        opacity: isReady ? 1 : 0,
+        transition: 'opacity 0.5s ease'
+      }}
+    >
+      {/* Ajuste de raio para Mobile vs Desktop via CSS Variables */}
+      <style>{`
+        :root { --reveal-radius: 400px; }
+        @media (max-width: 768px) { :root { --reveal-radius: 200px; } }
+      `}</style>
+
+      {/* A camada de texto ASCII */}
+      <div className="absolute inset-0 w-full h-full text-[#00FF41] font-mono text-[16px] leading-relaxed select-none opacity-40 drop-shadow-[0_0_10px_rgba(0,255,65,0.3)] break-all overflow-hidden whitespace-normal tracking-[0.5em] uppercase">
+        {asciiGrid}
+      </div>
+    </div>
+  );
+};
+
+// --- TERMINAL SOMA-BIT COMPONENTS ---
+
+const SystemLog = () => {
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop > 10) {
+      if (!hasScrolled) setHasScrolled(true);
+    } else {
+      if (hasScrolled) setHasScrolled(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-5xl mx-auto mb-20 px-6">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-2 h-2 bg-accent animate-pulse shadow-[0_0_8px_#ccff00]" />
+        <h2 className="font-space text-xs uppercase tracking-[0.4em] text-accent drop-shadow-[0_0_5px_rgba(204,255,0,0.5)]">
+          Curadoria // Log de Sistema_v.01
+        </h2>
+      </div>
+      
+      <div className="relative w-full h-[220px] md:h-[260px] overflow-hidden border border-white/10 rounded-xl bg-black/40 backdrop-blur-md p-px">
+        {/* Rack Corners */}
+        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-accent/40 z-20" />
+        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-accent/40 z-20" />
+        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-accent/40 z-20" />
+        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-accent/40 z-20" />
+
+        {/* Fades */}
+        <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none" />
+        <div className={`absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none transition-opacity duration-500 ${hasScrolled ? 'opacity-0' : 'opacity-100'}`} />
+
+        <div 
+          onScroll={handleScroll}
+          className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 pb-8">
+            <p className="font-space text-sm leading-relaxed text-white/90 text-justify">
+              A Galeria V.I.S.T.O não é uma vitrine, mas um terminal de processamento. 
+              Aqui, os objetos digitais são módulos operativos que aguardam a ativação do sinal 
+              corporal. Cada técnica — do ASCII Mirror à Latência Cinética — funciona como um 
+              estágio de desvio na cadeia de sinal corpo-máquina.
+            </p>
+            <p className="font-space text-sm leading-relaxed text-white/90 text-justify">
+              O desvio (Fork) é o ato curatorial central. Ao acessar um protocolo e bifurcar 
+              seu código, o usuário-operador deixa de ser espectador para tornar-se parte do 
+              sistema. A ocupação transcende a tela; ela ocorre no espaço entre o gesto e o pixel.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const HeroMarquee = ({ text }: { text: string }) => {
+  const renderContent = (keyPrefix: string) => (
+    <div key={keyPrefix} className="flex items-center">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center">
+          <span className="text-accent font-space font-bold text-[clamp(1rem,2vw,1.4rem)] uppercase mx-12 opacity-90">
+            {text}
+          </span>
+          <div className="w-1.5 h-1.5 bg-accent rotate-45" />
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-[100vw] bg-black/30 backdrop-blur-sm border-y border-white/10 py-6 md:py-8 my-12 overflow-hidden relative">
+      <motion.div 
+        className="flex whitespace-nowrap"
+        animate={{ x: ["0%", "-50%"] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        style={{ willChange: "transform" }}
+      >
+        {renderContent("loop-1")}
+        {renderContent("loop-2")}
+      </motion.div>
+    </div>
+  );
+};
+
+const SomaModule: React.FC<{ artwork: Artwork; onClick: () => void }> = ({ artwork, onClick }) => {
+  const { playInteractionSound } = useInteractiveSystem();
+  
+  // L-Shapes corners
+  const Corner = ({ className }: { className: string }) => (
+    <div className={`absolute w-3 h-3 border-accent ${className}`} />
+  );
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="group relative bg-black/40 backdrop-blur-md border border-white/5 aspect-[3/4] flex flex-col overflow-hidden"
+    >
+      {/* Corner Coordinates */}
+      <Corner className="top-0 left-0 border-t border-l" />
+      <Corner className="top-0 right-0 border-t border-r" />
+      <Corner className="bottom-0 left-0 border-b border-l" />
+      <Corner className="bottom-0 right-0 border-b border-r" />
+
+      {/* Header Info */}
+      <div className="p-4 flex justify-between items-center border-b border-white/5 bg-black/40">
+        <div className="flex flex-col">
+          <span className="font-space text-[8px] text-accent/60 uppercase tracking-widest">Protocol ID</span>
+          <span className="font-space text-[10px] text-accent uppercase font-bold">OBJ_{artwork.id.padStart(2, '0')}_VST</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+          <span className="font-space text-[9px] uppercase tracking-tighter">Status: IDLE</span>
+        </div>
+      </div>
+
+      {/* Media Content */}
+      <div className="relative flex-1 overflow-hidden group-hover:bg-black/20 transition-colors cursor-pointer" onClick={onClick}>
+        <img 
+          src={artwork.imageUrl} 
+          alt={artwork.title} 
+          className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+          <button className="px-6 py-2 bg-accent text-bg font-space text-[10px] font-bold uppercase tracking-widest border border-accent hover:bg-transparent hover:text-accent transition-all">
+            [ ACESSAR PROTOCOLO ]
+          </button>
+        </div>
+      </div>
+
+      {/* Footer Info */}
+      <div className="p-4 border-t border-white/5 font-space">
+        <h3 className="text-sm font-bold uppercase tracking-tight text-white group-hover:text-accent transition-colors">{artwork.title}</h3>
+        <p className="text-[9px] text-white/50 uppercase tracking-widest mt-1">Nível de Processamento: {artwork.category}</p>
+        <div className="mt-3 flex items-center justify-end gap-3">
+          <a 
+            href={`https://openprocessing.org/sketch/${artwork.openProcessingId}/fork`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+               e.stopPropagation();
+               playInteractionSound('click');
+            }}
+            className="text-white/40 hover:text-accent flex items-center gap-1 transition-colors"
+          >
+            <span className="text-[8px] uppercase tracking-widest">Fork</span>
+            <ArrowUpRight size={12} />
+          </a>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const LevelSeparator = ({ level, title, items }: { level: number; title: string, items: string[] }) => {
+  const separatorContent = (prefix: string) => (
+    <div className="flex items-center">
+      {[...items, ...items, ...items].map((item, i) => (
+        <div key={`${prefix}-${i}`} className="flex items-center">
+          <span className="text-[#00FF41] font-space font-bold text-xs uppercase mx-12 opacity-80">
+            {item}
+          </span>
+          <div className="w-1 h-1 bg-[#00FF41] rotate-45" />
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="w-full my-16">
+      <div className="max-w-7xl mx-auto px-6 mb-4 flex items-end justify-between">
+        <div className="flex flex-col">
+          <span className="font-space text-[10px] text-accent/60 uppercase tracking-[0.5em]">Nível {level}</span>
+          <h2 className="font-display text-4xl font-bold uppercase text-white">{title}</h2>
+        </div>
+        <div className="hidden md:block font-space text-[10px] text-white/30 uppercase tracking-[0.2em] mb-1">
+          Operando Fluxo de Sinal {" >> "}
+        </div>
+      </div>
+      <div className="w-full bg-[#00FF41]/5 border-y border-white/5 py-4 overflow-hidden relative">
+        <motion.div 
+          className="flex whitespace-nowrap"
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          style={{ willChange: "transform" }}
+        >
+          {separatorContent("a")}
+          {separatorContent("b")}
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+const InspectionPanel = ({ artwork, onClose }: { artwork: Artwork | null; onClose: () => void }) => {
+  if (!artwork) return null;
+
+  return (
+    <AnimatePresence>
+      {artwork && (
+        <>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] cursor-pointer"
+          />
+          <motion.div 
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed top-0 right-0 h-full w-full md:w-[600px] bg-bg border-l border-accent/20 z-[160] overflow-y-auto custom-scrollbar flex flex-col p-8 md:p-12 shadow-[-50px_0_100px_rgba(0,0,0,0.5)]"
+          >
+            <button onClick={onClose} className="self-end mb-8 text-accent hover:rotate-90 transition-transform">
+              <X size={32} />
+            </button>
+
+            <div className="flex-1">
+               <div className="flex items-center gap-3 mb-6">
+                <span className="px-3 py-1 bg-accent/20 text-accent font-space text-[10px] uppercase tracking-widest border border-accent/40">Protocolo Ativado</span>
+                <span className="font-space text-[10px] text-white/40 uppercase tracking-widest">OBJ_{artwork.id.padStart(2, '0')}_VST</span>
+              </div>
+
+              <h2 className="font-display text-4xl md:text-5xl font-bold uppercase tracking-tighter mb-4">{artwork.title}</h2>
+              <p className="font-space text-xs text-accent uppercase tracking-widest mb-8">{artwork.artist} // {artwork.year}</p>
+
+              <div className="aspect-video w-full bg-black mb-8 border border-white/10 relative overflow-hidden">
+                <img 
+                  src={artwork.imageUrl} 
+                  alt={artwork.title} 
+                  className="w-full h-full object-cover opacity-50 blur-[2px]"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center ring-1 ring-inset ring-accent/20">
+                    <p className="font-space text-sm text-accent mb-6 leading-relaxed max-w-sm">Este objeto requer conexão corporal direta via terminal OpenProcessing.</p>
+                    <div className="flex flex-wrap gap-4 justify-center">
+                        <a 
+                            href={`https://openprocessing.org/sketch/${artwork.openProcessingId}/embed/`}
+                            target="_blank"
+                            className="px-8 py-4 bg-accent text-bg font-space font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors"
+                        >
+                            [ ABRIR TERMINAL ]
+                        </a>
+                        <a 
+                            href={`https://openprocessing.org/sketch/${artwork.openProcessingId}/fork`}
+                            target="_blank"
+                            className="px-8 py-4 border border-accent text-accent font-space font-bold uppercase tracking-widest text-xs hover:bg-accent/10 transition-colors"
+                        >
+                            [ DESVIAR PROTOCOLO / FORK ]
+                        </a>
+                    </div>
+                </div>
+              </div>
+
+              <div className="space-y-8 border-t border-white/10 pt-8">
+                <div>
+                  <h3 className="font-space text-[10px] text-accent uppercase tracking-[0.3em] mb-4">Relatório Conceitual:</h3>
+                  <p className="font-space text-sm leading-relaxed text-white/70">{artwork.description}</p>
+                </div>
+
+                <div>
+                   <h3 className="font-space text-[10px] text-accent uppercase tracking-[0.3em] mb-4">Parâmetros de Controle:</h3>
+                   <div className="grid grid-cols-2 gap-4">
+                      {['sensitivity_body', 'flux_density', 'color_latency', 'gravity_z'].map(param => (
+                        <div key={param} className="flex flex-col border border-white/5 p-3 bg-black/40">
+                             <span className="font-space text-[8px] opacity-40 uppercase tracking-widest">Variable</span>
+                             <span className="font-space text-[10px] text-white/90 uppercase">{param}</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+
+                <div className="p-6 bg-accent/5 border border-accent/10">
+                   <h3 className="font-space text-[10px] text-accent uppercase tracking-[0.3em] mb-3">Ritual do Fork:</h3>
+                   <p className="font-space text-[11px] leading-relaxed text-white/60">
+                    Ao realizar o Fork, você assume a autoria compartilhada do desvio. Este código deve ser alimentado por novos corpos. A redistribuição deve manter a mesma licença BY-NC-SA.
+                   </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -2651,6 +3200,42 @@ const InteractiveMedia = ({ children, className = "" }: { children: React.ReactN
   );
 };
 
+const Marquee = () => {
+  const items = [
+    'Objetos Digitais Interativos',
+    'Código Aberto',
+    'Workshops Gratuitos',
+    'Galeria de Arte Digital',
+    'Objetos Sonoros',
+    'Corpo como Interface'
+  ];
+
+  return (
+    <div className="w-full bg-[#00FF41] py-4 overflow-hidden border-y border-black relative z-20">
+      <motion.div 
+        className="flex whitespace-nowrap"
+        animate={{ x: ["0%", "-50%"] }}
+        transition={{ 
+          duration: 30, 
+          repeat: Infinity, 
+          ease: "linear" 
+        }}
+      >
+        <div className="flex items-center">
+          {[...items, ...items].map((item, i) => (
+            <div key={i} className="flex items-center">
+              <span className="text-black font-black text-2xl uppercase mx-8">
+                {item}
+              </span>
+              <Plus className="text-black" size={24} strokeWidth={3} />
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function App() {
   return (
     <InteractiveProvider>
@@ -2688,18 +3273,18 @@ function AppContent() {
 
   const [view, setView] = useState<View>(() => {
     const path = window.location.pathname.replace('/', '');
-    if (['gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(path)) {
+    if (['home', 'gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(path)) {
       return path as View;
     }
     const hash = window.location.hash.replace('#', '');
-    if (['gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(hash)) {
+    if (['home', 'gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(hash)) {
       return hash as View;
     }
-    return 'gallery';
+    return 'home';
   });
 
   useEffect(() => {
-    if (view === 'gallery') {
+    if (view === 'home') {
       window.history.pushState(null, '', '/');
     } else {
       window.history.pushState(null, '', `/${view}`);
@@ -2709,10 +3294,10 @@ function AppContent() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.replace('/', '');
-      if (['gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(path)) {
+      if (['home', 'gallery', 'courses', 'login', 'live', 'artists', 'sonora', 'podcast', 'admin', 'privacidade', 'termos'].includes(path)) {
         setView(path as View);
       } else {
-        setView('gallery');
+        setView('home');
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -2743,6 +3328,7 @@ function AppContent() {
 
   useEffect(() => {
     const titles: Record<View, string> = {
+      home: 'PÁGINA INICIAL',
       gallery: 'GALERIA',
       courses: 'WORKSHOP',
       live: 'AO VIVO',
@@ -2947,7 +3533,7 @@ function AppContent() {
       sessionStorage.clear();
       
       console.log("[Auth] Logout concluído. Estado e cache limpos.");
-      handleNavigate('gallery');
+      handleNavigate('home');
     } catch (error) {
       console.error("[Auth] Erro crítico durante o logout:", error);
     }
@@ -3054,7 +3640,9 @@ function AppContent() {
       return;
     }
 
-    if (view === 'gallery') {
+    // Apenas páginas de conteúdo interno levam o Glow intenso (Lanterna Neon)
+    // Home e Galeria levam Glow mas ele é suprimido durante a constelação
+    if (['gallery', 'courses', 'live', 'artists', 'sonora', 'podcast', 'login'].includes(view)) {
       setIntensity('HIGH');
     } else {
       setIntensity('LOW');
@@ -3062,8 +3650,9 @@ function AppContent() {
   }, [view, setIntensity]);
 
   return (
-    <div className="min-h-screen grid-lines">
-      {view !== 'gallery' && <GlobalDiffuseGlow />}
+    <div className="min-h-screen grid-lines overflow-x-hidden relative">
+      {['gallery', 'courses', 'live', 'artists', 'sonora', 'podcast', 'login'].includes(view) && <GlobalDiffuseGlow />}
+      {['gallery', 'courses', 'live', 'artists', 'sonora', 'podcast', 'login'].includes(view) && <ASCIILantern />}
       <Header 
         onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} 
         isMenuOpen={isMenuOpen} 
@@ -3090,8 +3679,8 @@ function AppContent() {
       {view === 'privacidade' && <PrivacyPolicyView onNavigate={handleNavigate} />}
       {view === 'termos' && <TermsOfServiceView onNavigate={handleNavigate} />}
 
-      {view === 'gallery' && (
-        <main className="pt-32 pb-24 px-6 md:px-12">
+      {view === 'home' && (
+        <main className="pt-32 pb-24 px-6 md:px-12 text-white">
           {/* Hero Section (Title + Search) */}
           <div className="relative mb-12 w-full bg-black rounded-xl border border-white/5 overflow-hidden">
             <ConstellationBackground isSoundEnabled={isSoundEnabled} />
@@ -3216,26 +3805,119 @@ function AppContent() {
         </main>
       )}
 
+      {view === 'gallery' && (
+        <main className="relative z-10 pt-32 pb-24 px-0 bg-transparent">
+          {/* Hero Section */}
+          <div className="relative mb-12 w-full bg-transparent overflow-hidden px-6 md:px-12">
+            
+
+            <div className="relative z-10 w-full py-12 md:py-20 flex flex-col items-center">
+              {/* Intro Section */}
+              <motion.section 
+                style={{ y: introY, opacity: introOpacity }}
+                className="w-full mb-16 flex flex-col items-center justify-center text-center pointer-events-auto"
+              >
+                <InteractiveTitle 
+                  lines={[
+                    { text: "DO CORPO AO CÓDIGO", className: "font-display text-[clamp(2.4rem,8.5vw,6.4rem)] font-bold leading-none tracking-tight" }
+                  ]}
+                  highlights={['CÓDIGO']}
+                />
+                
+                <div className="w-full mt-8">
+                  <HeroMarquee text="Objetos Interativos de Código Aberto para práticas vídeo-coreográficas" />
+                </div>
+                
+                {/* Status Indicator */}
+                <div className="mt-8 flex items-center gap-3 font-space text-[10px] uppercase tracking-[0.4em] text-accent/60">
+                   <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                   SINAL_ESTÁVEL // TERMINAL_V_01
+                </div>
+              </motion.section>
+            </div>
+          </div>
+
+          <SystemLog />
+
+          {/* Racks Architecture */}
+          <div className="w-full space-y-32">
+            {/* Level 1: PERCEPÇÃO */}
+            <section>
+              <LevelSeparator 
+                level={1} 
+                title="SISTEMAS DE PERCEPÇÃO" 
+                items={['Sensing', 'Mirroring', 'Body Capture', 'ASCII Flux', 'Optical Flow', 'Presence Detection']}
+              />
+              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/5">
+                {allArtworks.filter(a => ['1', '3', '6'].includes(a.id)).map((artwork) => (
+                  <SomaModule 
+                    key={artwork.id} 
+                    artwork={artwork} 
+                    onClick={() => setSelectedArtwork(artwork)} 
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Level 2: TRANSFORMAÇÃO */}
+            <section>
+              <LevelSeparator 
+                level={2} 
+                title="PROCESSAMENTO DE DESVIO" 
+                items={['Glitch Matrix', 'Latency Loop', 'Kinetic Distortion', 'Generative Void', 'Data Feedback', 'Signal Drift']}
+              />
+              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/5">
+                {allArtworks.filter(a => ['2', '4', '5', '8'].includes(a.id)).map((artwork) => (
+                  <SomaModule 
+                    key={artwork.id} 
+                    artwork={artwork} 
+                    onClick={() => setSelectedArtwork(artwork)} 
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Level 3: MEDIAÇÃO */}
+            <section>
+              <LevelSeparator 
+                level={3} 
+                title="ESTÁGIOS DE MEDIAÇÃO" 
+                items={['Collaborative Signal', 'Forked Presence', 'System Ritual', 'Soma-Bit Output', 'Intersomatic Link']}
+              />
+              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/5">
+                {allArtworks.filter(a => ['7'].includes(a.id) || a.isStudentSubmission).map((artwork) => (
+                  <SomaModule 
+                    key={artwork.id} 
+                    artwork={artwork} 
+                    onClick={() => setSelectedArtwork(artwork)} 
+                  />
+                ))}
+              </div>
+            </section>
+          </div>
+        </main>
+      )}
+
       {view === 'courses' && (
-        <main className="pt-32 pb-24 px-6 md:px-12">
+        <main className="relative z-10 pt-32 pb-24 px-6 md:px-12 bg-transparent">
           <button 
-            onClick={() => handleNavigate('gallery')}
-            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+            onClick={() => handleNavigate('home')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform drop-shadow-[0_0_5px_rgba(204,255,0,0.3)]"
           >
-            <ArrowLeft size={14} /> Voltar para Galeria
+            <ArrowLeft size={14} /> Voltar para Início
           </button>
           <section className="mb-16 flex flex-col items-center text-center">
             <ScramblePageTitle 
               text="WORKSHOPS"
               centered={true}
-              className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-6"
+              className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-12 drop-shadow-[0_0_15px_rgba(204,255,0,0.2)]"
             />
-            <p className="font-sans text-[#00FF41] max-w-2xl text-lg leading-relaxed">Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia.</p>
+            <HeroMarquee text="Oficinas e laboratórios focados em performance, improvisação e presença intermediada por tecnologia." />
           </section>
 
           {!user && (
-            <div className="mb-12 p-8 border border-accent/30 bg-accent/5 flex flex-col md:flex-row justify-between items-center gap-6">
-              <p className="font-display text-xl uppercase tracking-tight">Faça login com sua conta Google para poder se inscrever nas oficinas.</p>
+            <div className="mb-12 p-8 border border-accent/30 bg-black/40 backdrop-blur-md flex flex-col md:flex-row justify-between items-center gap-6 rounded-xl">
+              <p className="font-display text-xl uppercase tracking-tight text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">Faça login com sua conta Google para poder se inscrever nas oficinas.</p>
               <button onClick={() => handleNavigate('login')} className="px-8 py-3 bg-accent text-bg font-mono text-[10px] uppercase tracking-widest font-bold">Fazer Login com Google para Inscrição</button>
             </div>
           )}
@@ -3248,35 +3930,43 @@ function AppContent() {
         </main>
       )}
 
-      <ArtworkModal 
-        artwork={selectedArtwork} 
-        onClose={() => setSelectedArtwork(null)} 
-      />
+      {view === 'gallery' ? (
+        <InspectionPanel 
+          artwork={selectedArtwork} 
+          onClose={() => setSelectedArtwork(null)} 
+        />
+      ) : (
+        <ArtworkModal 
+          artwork={selectedArtwork} 
+          onClose={() => setSelectedArtwork(null)} 
+        />
+      )}
 
       {view === 'live' && (
-        <main className="pt-32 pb-24 px-6 md:px-12">
+        <main className="relative z-10 pt-32 pb-24 px-6 md:px-12 bg-transparent">
           <button 
-            onClick={() => handleNavigate('gallery')}
-            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-[#00FF41] hover:translate-x-[-4px] transition-transform"
+            onClick={() => handleNavigate('home')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-[#00FF41] hover:translate-x-[-4px] transition-transform drop-shadow-[0_0_5px_rgba(0,255,65,0.3)]"
           >
-            <ArrowLeft size={14} /> Voltar para Galeria
+            <ArrowLeft size={14} /> Voltar para Início
           </button>
           
-          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end justify-center">
+          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex flex-col items-center justify-end">
             <ScramblePageTitle 
               text="AO VIVO — SESSÕES DE CASA ABERTA" 
               centered={true}
-              className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+              className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] mb-12"
             />
+            <HeroMarquee text="Um laboratório em fluxo contínuo onde corpo, código e som se atravessam. Acompanhe processos em tempo real e acesse a criação no instante em que ela acontece." />
           </section>
 
-          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start w-full max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row gap-8 md:gap-16 items-start w-full max-w-[1600px] mx-auto mt-12">
             {/* Left Side: Image */}
-            <div className="w-full md:w-[40%] flex justify-center items-start relative shrink-0">
-              <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
-                <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
+            <div className="w-full md:w-[45%] flex justify-start items-start relative shrink-0">
+              <div className="absolute inset-0 flex items-start justify-start pointer-events-none">
+                <div className="absolute w-[250px] h-[250px] md:w-[500px] md:h-[500px] rounded-2xl bg-[#00FF41]/10 blur-3xl opacity-50" />
               </div>
-              <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
+              <div className="relative w-full aspect-square md:w-full max-w-[550px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
                 <InteractiveMedia className="w-full h-full">
                   <img 
                     src="/espera_ao_vivo.webp" 
@@ -3289,16 +3979,10 @@ function AppContent() {
             </div>
 
             {/* Right Side: Content */}
-            <div className="w-full md:w-[60%] flex flex-col">
-              <div className="mb-8 md:mb-12 flex flex-col items-start justify-start shrink-0">
-                <p className="font-sans text-lg md:text-xl text-[#00FF41]">
-                  Um laboratório em fluxo contínuo onde corpo, código e som se atravessam. Acompanhe processos em tempo real e acesse a criação no instante em que ela acontece.
-                </p>
-              </div>
-              
-              <div className="relative w-full h-[350px] md:h-[450px] overflow-hidden border border-white/10 rounded-xl bg-white/5 pointer-events-auto">
-                <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+            <div className="w-full md:w-[55%] flex flex-col">
+              <div className="relative w-full h-[350px] md:h-[450px] overflow-hidden border border-white/10 rounded-xl bg-black/40 backdrop-blur-md pointer-events-auto">
+                <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none" />
                 
                 <div className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8">
                   <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed pb-8">
@@ -3310,7 +3994,7 @@ function AppContent() {
                     <p>Este laboratório performativo se organiza como um ecossistema sensível onde corpo, sinal e matéria se afetam mutuamente. A cada sessão, uma nova configuração emerge — instável, processual e irrepetível.</p>
                     <p>Transmitidas ao vivo, as sessões expandem o espaço físico para o ambiente digital, convidando o público a acompanhar e interagir com o processo em fluxo contínuo. O que se compartilha não é uma obra finalizada, mas um campo de experimentação aberto, onde criação e recepção se contaminam.</p>
                     
-                    <div className="mt-8 p-6 border border-[#00FF41]/30 bg-[#00FF41]/5 rounded-lg">
+                    <div className="mt-8 p-6 border border-[#00FF41]/30 bg-black/40 backdrop-blur-lg rounded-lg">
                       <h3 className="font-mono text-sm text-[#00FF41] uppercase tracking-widest mb-4">Matriz do Processo</h3>
                       <ul className="space-y-2 font-mono text-xs md:text-sm">
                         <li><span className="text-white/50">Corpo & Creative Coding:</span> Roberta Savian Rosa</li>
@@ -3340,12 +4024,12 @@ function AppContent() {
       )}
 
       {view === 'artists' && (
-        <main className="pt-32 pb-24 px-6 md:px-12">
+        <main className="relative z-10 pt-32 pb-24 px-6 md:px-12">
           <button 
-            onClick={() => handleNavigate('gallery')}
+            onClick={() => handleNavigate('home')}
             className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
           >
-            <ArrowLeft size={14} /> Voltar para Galeria
+            <ArrowLeft size={14} /> Voltar para Início
           </button>
           <section className="mb-20 flex justify-center">
             <ScramblePageTitle text="ARTISTAS" centered={true} className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-8" />
@@ -3355,95 +4039,89 @@ function AppContent() {
       )}
 
       {view === 'sonora' && (
-        <main className="pt-32 pb-24 px-6 md:px-12">
+        <main className="relative z-10 pt-32 pb-24 px-6 md:px-12 bg-transparent">
           <button 
-            onClick={() => handleNavigate('gallery')}
-            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform"
+            onClick={() => handleNavigate('home')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-accent hover:translate-x-[-4px] transition-transform drop-shadow-[0_0_5px_rgba(204,255,0,0.3)]"
           >
-            <ArrowLeft size={14} /> Voltar para Galeria
+            <ArrowLeft size={14} /> Voltar para Início
           </button>
           <section className="mb-16 flex flex-col items-center">
-            <ScramblePageTitle text="SonorⒶ" centered={true} className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-4" />
-            <p className="font-sans text-[#00FF41] max-w-2xl text-lg text-center">Experimentações sonoras e paisagens auditivas.</p>
+            <ScramblePageTitle text="SonorⒶ" centered={true} className="font-display text-6xl md:text-8xl lg:text-[8rem] xl:text-[10rem] font-bold uppercase tracking-tighter mb-12 drop-shadow-[0_0_15px_rgba(204,255,0,0.2)]" />
+            <HeroMarquee text="Experimentações sonoras e paisagens auditivas." />
           </section>
-          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-white/5">
+          <div className="flex items-center justify-center p-24 border border-white/10 rounded-xl bg-black/40 backdrop-blur-md">
             <p className="font-mono text-xs uppercase tracking-widest opacity-40">Conteúdo em breve</p>
           </div>
         </main>
       )}
 
       {view === 'podcast' && (
-        <main className="pt-32 pb-24 px-6 md:px-12">
+        <main className="relative z-10 pt-32 pb-24 px-6 md:px-12 bg-transparent">
           <button 
-            onClick={() => handleNavigate('gallery')}
-            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-[#00FF41] hover:translate-x-[-4px] transition-transform"
+            onClick={() => handleNavigate('home')}
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-[#00FF41] hover:translate-x-[-4px] transition-transform drop-shadow-[0_0_5px_rgba(0,255,65,0.3)]"
           >
-            <ArrowLeft size={14} /> Voltar para Galeria
+            <ArrowLeft size={14} /> Voltar para Início
           </button>
           
-          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex items-end justify-center">
+          <section className="mb-16 min-h-[120px] md:min-h-[160px] lg:min-h-[200px] flex flex-col items-center justify-end">
             <ScramblePageTitle 
               text="SONORA_VISTA PODCAST" 
               centered={true}
-              className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+              className="font-display text-[clamp(1.8rem,5.5vw,6rem)] font-bold uppercase tracking-tighter text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] mb-12"
             />
+            <HeroMarquee text="Uma escuta dos bastidores — onde ideias, práticas e experimentações ganham voz." />
           </section>
 
-          <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start w-full max-w-7xl mx-auto">
-            {/* Left Side: Image */}
-            <div className="w-full md:w-[40%] flex flex-col items-center md:items-start relative shrink-0">
-              <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
-                <div className="absolute w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-2xl bg-[#00FF41]/10 blur-3xl" />
+          <div className="grid grid-cols-1 md:grid-cols-[45%_55%] gap-x-8 md:gap-x-16 w-full max-w-[1600px] mx-auto mt-12 items-start">
+            {/* Row 1, Col 1: First Monitor */}
+            <div className="relative w-full aspect-square md:w-full max-w-[550px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10 mb-8">
+              <div className="absolute inset-0 flex items-start justify-start pointer-events-none -z-10">
+                <div className="absolute w-[250px] h-[250px] md:w-[500px] md:h-[500px] rounded-2xl bg-[#00FF41]/10 blur-3xl opacity-50" />
               </div>
-              <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
-                <InteractiveMedia className="w-full h-full">
-                  <img 
-                    src="/espera_sonora_vista.webp" 
-                    alt="SONORA_VISTA PODCAST" 
-                    className="w-full h-full object-cover transition-transform duration-500 ease-out"
-                    referrerPolicy="no-referrer"
-                  />
-                </InteractiveMedia>
-              </div>
+              <InteractiveMedia className="w-full h-full">
+                <img 
+                  src="/espera_sonora_vista.webp" 
+                  alt="SONORA_VISTA PODCAST" 
+                  className="w-full h-full object-cover transition-transform duration-500 ease-out"
+                  referrerPolicy="no-referrer"
+                />
+              </InteractiveMedia>
+            </div>
 
-              {/* New Animated WebP */}
-              <div className="relative w-full aspect-square md:w-[400px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10 mt-8">
-                <InteractiveMedia className="w-full h-full">
-                  <img 
-                    src="/loopsonora_vista.webp"
-                    alt="Loop Sonora Vista"
-                    className="w-full h-full object-cover transition-transform duration-500 ease-out"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
-                </InteractiveMedia>
+            {/* Row 1, Col 2: Terminal Text */}
+            <div className="relative w-full h-[350px] md:h-[450px] overflow-hidden border border-white/10 rounded-xl bg-black/40 backdrop-blur-md pointer-events-auto mb-8">
+              <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none" />
+              
+              <div className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8">
+                <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed pb-8">
+                  <p>O SONORA_VISTA PODCAST é a extensão sonora do ecossistema criativo do V.I.S.T.O — um espaço de escuta onde processos, ideias e experimentações ganham corpo em forma de conversa.</p>
+                  <p>Inserido em um território de intersecção entre a presença do corpo e as texturas das tecnologias digitais e analógicas, o podcast acompanha a reabertura do atelier como um laboratório vivo. Cada episódio revela camadas do fazer artístico que atravessam a vídeo-coreografia, a arte generativa e a arte sonora, não como linguagens isoladas, mas como campos em constante contaminação.</p>
+                  <p>Mais do que registrar, o SONORA_VISTA documenta deslocamentos: o retorno ao espaço físico como gesto de memória e, simultaneamente, como plataforma de projeção para novas visualidades e modos de existência sensível.</p>
+                  <p>🎙️ Bastidores e processos criativos conduzem a narrativa — com os idealizadores e convidados compartilhando percursos, dúvidas, estratégias e fabulações que sustentam suas práticas.</p>
+                  <p>Entre o ensaio e a escuta, o íntimo e o técnico, o podcast se estabelece como um arquivo em movimento: um espaço onde o pensamento artístico acontece em tempo real.</p>
+                </div>
               </div>
             </div>
 
-            {/* Right Side: Content */}
-            <div className="w-full md:w-[60%] flex flex-col">
-              <div className="mb-8 md:mb-12 flex flex-col items-start justify-start shrink-0">
-                <p className="font-sans text-lg md:text-xl text-[#00FF41]">
-                  Uma escuta dos bastidores — onde ideias, práticas e experimentações ganham voz.
-                </p>
-              </div>
-              
-              <div className="relative w-full h-[350px] md:h-[450px] overflow-hidden border border-white/10 rounded-xl bg-white/5 pointer-events-auto">
-                <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-                
-                <div className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8">
-                  <div className="font-sans text-sm md:text-base opacity-80 space-y-6 leading-relaxed pb-8">
-                    <p>O SONORA_VISTA PODCAST é a extensão sonora do ecossistema criativo do V.I.S.T.O — um espaço de escuta onde processos, ideias e experimentações ganham corpo em forma de conversa.</p>
-                    <p>Inserido em um território de intersecção entre a presença do corpo e as texturas das tecnologias digitais e analógicas, o podcast acompanha a reabertura do atelier como um laboratório vivo. Cada episódio revela camadas do fazer artístico que atravessam a vídeo-coreografia, a arte generativa e a arte sonora, não como linguagens isoladas, mas como campos em constante contaminação.</p>
-                    <p>Mais do que registrar, o SONORA_VISTA documenta deslocamentos: o retorno ao espaço físico como gesto de memória e, simultaneamente, como plataforma de projeção para novas visualidades e modos de existência sensível.</p>
-                    <p>🎙️ Bastidores e processos criativos conduzem a narrativa — com os idealizadores e convidados compartilhando percursos, dúvidas, estratégias e fabulações que sustentam suas práticas.</p>
-                    <p>Entre o ensaio e a escuta, o íntimo e o técnico, o podcast se estabelece como um arquivo em movimento: um espaço onde o pensamento artístico acontece em tempo real.</p>
-                  </div>
-                </div>
-              </div>
+            {/* Row 2, Col 1: Second Monitor */}
+            <div className="relative w-full aspect-square md:w-full max-w-[550px] rounded-2xl overflow-hidden border-2 border-[#00FF41] shadow-[0_0_30px_rgba(0,255,65,0.3)] z-10">
+              <InteractiveMedia className="w-full h-full">
+                <img 
+                  src="/loopsonora_vista.webp"
+                  alt="Loop Sonora Vista"
+                  className="w-full h-full object-cover transition-transform duration-500 ease-out"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              </InteractiveMedia>
+            </div>
 
-              <div className="mt-8">
+            {/* Row 2, Col 2: Buttons (Aligned with Second Monitor) */}
+            <div className="flex flex-col gap-8 w-full">
+              <div>
                 <a 
                   href="https://open.spotify.com/user/31lgtcyqypbtxgsvzrczwlndwt74?si=1e2e8f075d0841a1" 
                   target="_blank" 
@@ -3455,7 +4133,7 @@ function AppContent() {
                 </a>
               </div>
 
-              <div className="mt-8">
+              <div>
                 <a 
                   href="https://youtube.com/playlist?list=PLrW-jjiEJDBNaeuWH2ThyX-HJU7WOe8bl&si=aOjXLiCq6xFn7Qt9"
                   target="_blank"
